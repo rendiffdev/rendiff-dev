@@ -1,33 +1,52 @@
 """
-Convert endpoint - Main API for media conversion
+Convert endpoint - Main API for media conversion.
+
+Uses FastAPI 0.124+ features including:
+- Annotated dependencies with Doc
+- Enhanced OpenAPI responses
+- Typed dependency injection
 """
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, status
+from annotated_doc import Doc
 import structlog
 
 from api.config import settings
-from api.dependencies import get_db, require_api_key
-from api.models.job import Job, JobStatus, ConvertRequest, JobCreateResponse, JobResponse
+from api.dependencies import DatabaseSession, RequiredAPIKey
+from api.models.job import Job, JobStatus, ConvertRequest, JobCreateResponse, JobResponse, ErrorResponse
 from api.services.queue import QueueService
 from api.services.storage import StorageService
 from api.utils.validators import validate_input_path, validate_output_path, validate_operations
 
 logger = structlog.get_logger()
+
 router = APIRouter()
 
 queue_service = QueueService()
 storage_service = StorageService()
 
 
-@router.post("/convert", response_model=JobCreateResponse)
+@router.post(
+    "/convert",
+    response_model=JobCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create media conversion job",
+    response_description="Job created successfully",
+    responses={
+        201: {"description": "Job created and queued for processing"},
+        400: {"model": ErrorResponse, "description": "Invalid request parameters"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+        429: {"model": ErrorResponse, "description": "Rate limit or concurrent job limit exceeded"},
+        503: {"model": ErrorResponse, "description": "Service temporarily unavailable"},
+    },
+)
 async def convert_media(
-    request: ConvertRequest,
+    request: Annotated[ConvertRequest, Doc("Media conversion job specification")],
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
-    api_key: str = Depends(require_api_key),
+    db: DatabaseSession,
+    api_key: RequiredAPIKey,
 ) -> JobCreateResponse:
     """
     Create a new media conversion job.
@@ -195,12 +214,22 @@ async def convert_media(
         raise HTTPException(status_code=500, detail="Failed to create job")
 
 
-@router.post("/analyze", response_model=JobCreateResponse)
+@router.post(
+    "/analyze",
+    response_model=JobCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Analyze media quality metrics",
+    responses={
+        201: {"description": "Analysis job created"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+    },
+)
 async def analyze_media(
-    request: Dict[str, Any],
+    request: Annotated[Dict[str, Any], Doc("Media analysis request")],
     fastapi_request: Request,
-    db: AsyncSession = Depends(get_db),
-    api_key: str = Depends(require_api_key),
+    db: DatabaseSession,
+    api_key: RequiredAPIKey,
 ) -> JobCreateResponse:
     """
     Analyze media file for quality metrics.
@@ -225,11 +254,21 @@ async def analyze_media(
     return await convert_media(convert_request, BackgroundTasks(), db, api_key)
 
 
-@router.post("/stream", response_model=JobCreateResponse)
+@router.post(
+    "/stream",
+    response_model=JobCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create adaptive streaming output",
+    responses={
+        201: {"description": "Streaming job created"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+    },
+)
 async def create_stream(
-    request: Dict[str, Any],
-    db: AsyncSession = Depends(get_db),
-    api_key: str = Depends(require_api_key),
+    request: Annotated[Dict[str, Any], Doc("Streaming format request (HLS/DASH)")],
+    db: DatabaseSession,
+    api_key: RequiredAPIKey,
 ) -> JobCreateResponse:
     """
     Create adaptive streaming formats (HLS/DASH).
@@ -261,10 +300,19 @@ async def create_stream(
     return await convert_media(convert_request, BackgroundTasks(), db, api_key)
 
 
-@router.post("/estimate")
+@router.post(
+    "/estimate",
+    summary="Estimate job processing time and resources",
+    response_description="Estimation results",
+    responses={
+        200: {"description": "Estimation successful"},
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication required"},
+    },
+)
 async def estimate_job(
-    request: ConvertRequest,
-    api_key: str = Depends(require_api_key),
+    request: Annotated[ConvertRequest, Doc("Job to estimate")],
+    api_key: RequiredAPIKey,
 ) -> Dict[str, Any]:
     """
     Estimate processing time and resources for a conversion job.
