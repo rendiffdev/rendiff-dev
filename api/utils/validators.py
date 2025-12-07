@@ -225,7 +225,8 @@ async def validate_output_path(
 def validate_operations(operations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Validate and normalize operations list with enhanced security checks."""
     if not operations:
-        raise ValueError("Operations list cannot be empty")
+        # Empty operations list is valid - will use default transcoding
+        return []
 
     max_ops = settings.MAX_OPERATIONS_PER_JOB
     if len(operations) > max_ops:  # Prevent DOS through too many operations
@@ -256,10 +257,24 @@ def validate_operations(operations: List[Dict[str, Any]]) -> List[Dict[str, Any]
             validated_op = validate_watermark_operation(op)
         elif op_type == "filter":
             validated_op = validate_filter_operation(op)
-        elif op_type == "stream":
+        elif op_type in ("stream", "streaming"):
             validated_op = validate_stream_operation(op)
         elif op_type == "transcode":
             validated_op = validate_transcode_operation(op)
+        elif op_type == "scale":
+            validated_op = validate_scale_operation(op)
+        elif op_type == "crop":
+            validated_op = validate_crop_operation(op)
+        elif op_type == "rotate":
+            validated_op = validate_rotate_operation(op)
+        elif op_type == "flip":
+            validated_op = validate_flip_operation(op)
+        elif op_type == "audio":
+            validated_op = validate_audio_operation(op)
+        elif op_type == "subtitle":
+            validated_op = validate_subtitle_operation(op)
+        elif op_type == "concat":
+            validated_op = validate_concat_operation(op)
         else:
             raise ValueError(f"Unknown operation type: {op_type}")
         
@@ -381,23 +396,46 @@ def validate_watermark_operation(op: Dict[str, Any]) -> Dict[str, Any]:
 
 def validate_filter_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     """Validate filter operation."""
-    if "name" not in op:
-        raise ValueError("Filter operation requires 'name' field")
-    
     allowed_filters = {
         "denoise", "deinterlace", "stabilize", "sharpen", "blur",
-        "brightness", "contrast", "saturation", "hue", "eq"
+        "brightness", "contrast", "saturation", "hue", "eq", "gamma",
+        "fade_in", "fade_out", "speed"
     }
-    
-    filter_name = op["name"]
-    if filter_name not in allowed_filters:
-        raise ValueError(f"Unknown filter: {filter_name}")
-    
-    return {
-        "type": "filter",
-        "name": filter_name,
-        "params": op.get("params", {}),
-    }
+
+    validated = {"type": "filter"}
+
+    # Support named filter or direct params
+    if "name" in op:
+        filter_name = op["name"]
+        if filter_name not in allowed_filters:
+            raise ValueError(f"Unknown filter: {filter_name}")
+        validated["name"] = filter_name
+        validated["params"] = op.get("params", {})
+    else:
+        # Support direct filter params without name
+        for key in op:
+            if key != "type" and key in allowed_filters:
+                validated[key] = op[key]
+
+    # Validate specific filter parameters
+    if "brightness" in validated:
+        b = validated["brightness"]
+        if not isinstance(b, (int, float)) or b < -1 or b > 1:
+            raise ValueError("Brightness must be between -1 and 1")
+    if "contrast" in validated:
+        c = validated["contrast"]
+        if not isinstance(c, (int, float)) or c < 0 or c > 4:
+            raise ValueError("Contrast must be between 0 and 4")
+    if "saturation" in validated:
+        s = validated["saturation"]
+        if not isinstance(s, (int, float)) or s < 0 or s > 3:
+            raise ValueError("Saturation must be between 0 and 3")
+    if "speed" in validated:
+        sp = validated["speed"]
+        if not isinstance(sp, (int, float)) or sp < 0.25 or sp > 4:
+            raise ValueError("Speed must be between 0.25 and 4")
+
+    return validated
 
 
 def validate_stream_operation(op: Dict[str, Any]) -> Dict[str, Any]:
@@ -405,13 +443,193 @@ def validate_stream_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     stream_format = op.get("format", "hls").lower()
     if stream_format not in ["hls", "dash"]:
         raise ValueError(f"Unknown streaming format: {stream_format}")
-    
+
     return {
         "type": "stream",
         "format": stream_format,
         "variants": op.get("variants", []),
         "segment_duration": int(op.get("segment_duration", 6)),
     }
+
+
+def validate_scale_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate scale operation."""
+    validated = {"type": "scale"}
+
+    # Width and height
+    if "width" in op:
+        width = op["width"]
+        if width != "auto" and width != -1:
+            if not isinstance(width, (int, float)):
+                raise ValueError("Width must be a number or 'auto'")
+            width = int(width)
+            if width < 32 or width > 7680:
+                raise ValueError("Width out of valid range (32-7680)")
+            if width % 2 != 0:
+                raise ValueError("Width must be even number")
+        validated["width"] = width
+
+    if "height" in op:
+        height = op["height"]
+        if height != "auto" and height != -1:
+            if not isinstance(height, (int, float)):
+                raise ValueError("Height must be a number or 'auto'")
+            height = int(height)
+            if height < 32 or height > 4320:
+                raise ValueError("Height out of valid range (32-4320)")
+            if height % 2 != 0:
+                raise ValueError("Height must be even number")
+        validated["height"] = height
+
+    # Scaling algorithm
+    if "algorithm" in op:
+        allowed_algorithms = {"lanczos", "bicubic", "bilinear", "neighbor", "area", "fast_bilinear"}
+        if op["algorithm"] not in allowed_algorithms:
+            raise ValueError(f"Invalid scaling algorithm: {op['algorithm']}")
+        validated["algorithm"] = op["algorithm"]
+
+    return validated
+
+
+def validate_crop_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate crop operation."""
+    validated = {"type": "crop"}
+
+    for field in ["width", "height", "x", "y"]:
+        if field in op:
+            value = op[field]
+            if isinstance(value, str):
+                # Allow FFmpeg expressions like 'iw', 'ih', 'iw/2'
+                if not re.match(r'^[a-zA-Z0-9\+\-\*\/\(\)\.]+$', value):
+                    raise ValueError(f"Invalid {field} expression: {value}")
+                validated[field] = value
+            elif isinstance(value, (int, float)):
+                if value < 0:
+                    raise ValueError(f"{field} must be non-negative")
+                validated[field] = int(value) if field in ["x", "y"] else value
+            else:
+                raise ValueError(f"{field} must be a number or expression")
+
+    return validated
+
+
+def validate_rotate_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate rotate operation."""
+    validated = {"type": "rotate"}
+
+    if "angle" in op:
+        angle = op["angle"]
+        if not isinstance(angle, (int, float)):
+            raise ValueError("Angle must be a number")
+        # Normalize to -360 to 360 range
+        angle = angle % 360
+        if angle > 180:
+            angle -= 360
+        validated["angle"] = angle
+
+    return validated
+
+
+def validate_flip_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate flip operation."""
+    validated = {"type": "flip"}
+
+    direction = op.get("direction", "horizontal")
+    if direction not in ["horizontal", "vertical", "both"]:
+        raise ValueError(f"Invalid flip direction: {direction}")
+    validated["direction"] = direction
+
+    return validated
+
+
+def validate_audio_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate audio processing operation."""
+    validated = {"type": "audio"}
+
+    # Volume adjustment
+    if "volume" in op:
+        volume = op["volume"]
+        if isinstance(volume, (int, float)):
+            if volume < 0 or volume > 10:
+                raise ValueError("Volume must be between 0 and 10")
+            validated["volume"] = volume
+        elif isinstance(volume, str):
+            # Allow dB notation like "-3dB" or "2dB"
+            if not re.match(r'^-?\d+(\.\d+)?dB$', volume):
+                raise ValueError("Volume string must be in dB format (e.g., '-3dB')")
+            validated["volume"] = volume
+
+    # Normalization
+    if "normalize" in op:
+        validated["normalize"] = bool(op["normalize"])
+        if "normalize_type" in op:
+            if op["normalize_type"] not in ["loudnorm", "dynaudnorm"]:
+                raise ValueError("Invalid normalize type")
+            validated["normalize_type"] = op["normalize_type"]
+
+    # Sample rate
+    if "sample_rate" in op:
+        sr = op["sample_rate"]
+        allowed_sample_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000]
+        if sr not in allowed_sample_rates:
+            raise ValueError(f"Invalid sample rate: {sr}")
+        validated["sample_rate"] = sr
+
+    # Channels
+    if "channels" in op:
+        channels = op["channels"]
+        if channels not in [1, 2, 6, 8]:
+            raise ValueError("Channels must be 1, 2, 6, or 8")
+        validated["channels"] = channels
+
+    return validated
+
+
+def validate_subtitle_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate subtitle operation."""
+    validated = {"type": "subtitle"}
+
+    if "path" not in op:
+        raise ValueError("Subtitle operation requires 'path' field")
+
+    path = op["path"]
+    # Validate subtitle file extension
+    allowed_ext = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
+    ext = Path(path).suffix.lower()
+    if ext not in allowed_ext:
+        raise ValueError(f"Invalid subtitle format: {ext}")
+
+    validated["path"] = path
+
+    # Optional styling
+    if "style" in op:
+        validated["style"] = op["style"]
+
+    return validated
+
+
+def validate_concat_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate concatenation operation."""
+    validated = {"type": "concat"}
+
+    if "inputs" not in op:
+        raise ValueError("Concat operation requires 'inputs' field with list of files")
+
+    inputs = op["inputs"]
+    if not isinstance(inputs, list) or len(inputs) < 2:
+        raise ValueError("Concat requires at least 2 input files")
+
+    if len(inputs) > 100:
+        raise ValueError("Too many inputs for concat (max 100)")
+
+    validated["inputs"] = inputs
+
+    # Demuxer mode (safer) vs filter mode (more flexible)
+    validated["mode"] = op.get("mode", "demuxer")
+    if validated["mode"] not in ["demuxer", "filter"]:
+        raise ValueError("Concat mode must be 'demuxer' or 'filter'")
+
+    return validated
 
 
 def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
