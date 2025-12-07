@@ -71,14 +71,80 @@ async def lifespan(app: FastAPI):
 
 def create_application() -> FastAPI:
     """Create and configure FastAPI application with optimized settings."""
+
+    # OpenAPI tags for better documentation organization
+    openapi_tags = [
+        {
+            "name": "health",
+            "description": "Health checks and service status endpoints",
+        },
+        {
+            "name": "processing",
+            "description": "Media conversion, analysis, and streaming operations",
+        },
+        {
+            "name": "jobs",
+            "description": "Job management - status, listing, cancellation",
+        },
+        {
+            "name": "batch",
+            "description": "Batch processing operations for multiple files",
+        },
+        {
+            "name": "authentication",
+            "description": "API key management and authentication",
+        },
+        {
+            "name": "administration",
+            "description": "Administrative operations (requires admin privileges)",
+        },
+    ]
+
     application = FastAPI(
         title="Rendiff API",
-        description="Production-grade media processing API powered by FFmpeg for professional video workflows",
+        description="""
+# Rendiff - Production-Grade Media Processing API
+
+Powered by **FFmpeg** for professional video workflows with enterprise features.
+
+## Features
+
+- 🎬 **Video Conversion** - Support for all major formats (MP4, WebM, MOV, AVI, etc.)
+- 📊 **Quality Analysis** - VMAF, PSNR, SSIM quality metrics
+- 📡 **Adaptive Streaming** - HLS and DASH output generation
+- ⚡ **Hardware Acceleration** - NVENC, QSV, VAAPI, VideoToolbox support
+- 🔄 **Async Processing** - Queue-based job processing with real-time progress
+- 🔐 **Enterprise Security** - API key authentication, rate limiting, IP whitelisting
+
+## Authentication
+
+All endpoints (except health checks) require authentication via API key:
+
+```
+X-API-Key: rnd_live_your_api_key_here
+```
+
+Or using Bearer token:
+
+```
+Authorization: Bearer rnd_live_your_api_key_here
+```
+
+## Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| `/convert` | 200 req/hour |
+| `/analyze` | 100 req/hour |
+| `/stream` | 50 req/hour |
+| `/estimate` | 1000 req/hour |
+        """,
         version=settings.VERSION,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
         openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
+        openapi_tags=openapi_tags,
         contact={
             "name": "Rendiff Team",
             "url": "https://rendiff.dev",
@@ -87,6 +153,15 @@ def create_application() -> FastAPI:
         license_info={
             "name": "MIT License",
             "url": "https://github.com/rendiffdev/rendiff-dev/blob/main/LICENSE",
+        },
+        # FastAPI 0.124+ features
+        separate_input_output_schemas=True,  # Generate separate schemas for request/response
+        swagger_ui_parameters={
+            "deepLinking": True,
+            "persistAuthorization": True,
+            "displayRequestDuration": True,
+            "filter": True,
+            "syntaxHighlight.theme": "monokai",
         },
     )
     

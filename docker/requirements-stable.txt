@@ -1,13 +1,14 @@
 # Stable dependency versions with known compatibility
 # This file pins specific versions to prevent build failures
 
-# Core FastAPI Stack
-fastapi==0.109.0
-uvicorn[standard]==0.25.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-python-multipart==0.0.6
-starlette==0.35.1
+# Core FastAPI Stack (Updated to FastAPI 0.124.0)
+fastapi==0.124.0
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+python-multipart==0.0.19
+starlette==0.45.2
+annotated-doc==0.1.0
 
 # Database Stack (CRITICAL: These versions are tested for Python 3.12.7)
 sqlalchemy==2.0.25
