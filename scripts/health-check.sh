@@ -1,13 +1,13 @@
 #!/bin/bash
-# Comprehensive health check for FFmpeg API services
+# Comprehensive health check for Rendiff services
 
 set -e
 
 # Configuration
 POSTGRES_HOST=${POSTGRES_HOST:-postgres}
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
-POSTGRES_USER=${POSTGRES_USER:-ffmpeg_user}
-POSTGRES_DB=${POSTGRES_DB:-ffmpeg_api}
+POSTGRES_USER=${POSTGRES_USER:-rendiff_user}
+POSTGRES_DB=${POSTGRES_DB:-rendiff}
 
 REDIS_HOST=${REDIS_HOST:-redis}
 REDIS_PORT=${REDIS_PORT:-6379}

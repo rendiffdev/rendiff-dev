@@ -1,8 +1,8 @@
-# Prometheus Alerting Rules for FFmpeg API Production
+# Prometheus Alerting Rules for Rendiff Production
 # SLO-based alerts with multi-window burn rate
 
 groups:
-  - name: ffmpeg_api_availability
+  - name: rendiff_availability
     interval: 30s
     rules:
       # High Priority Alerts
@@ -11,7 +11,7 @@ groups:
         for: 2m
         labels:
           severity: critical
-          service: ffmpeg-api
+          service: rendiff
         annotations:
           summary: "High API error rate detected"
           description: "API error rate is {{ $value }} errors/sec for the last 5 minutes"
@@ -22,7 +22,7 @@ groups:
         for: 3m
         labels:
           severity: warning
-          service: ffmpeg-api
+          service: rendiff
         annotations:
           summary: "API response time is high"
           description: "95th percentile response time is {{ $value }}s"
@@ -255,7 +255,7 @@ groups:
 
       # Health Check Alerts
       - alert: HealthCheckFailing
-        expr: up{job="ffmpeg-api"} == 0
+        expr: up{job="rendiff"} == 0
         for: 2m
         labels:
           severity: critical

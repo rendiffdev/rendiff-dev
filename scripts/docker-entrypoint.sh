@@ -96,7 +96,7 @@ setup_monitoring() {
     # Setup log rotation if available
     if command -v logrotate &> /dev/null; then
         echo "Setting up log rotation..."
-        cat > /etc/logrotate.d/ffmpeg-api << 'LOGROTATE_EOF'
+        cat > /etc/logrotate.d/rendiff << 'LOGROTATE_EOF'
 /app/logs/*.log {
     daily
     missingok

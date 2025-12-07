@@ -1,5 +1,5 @@
 """
-Integration tests for FFmpeg API
+Integration tests for Rendiff API
 Tests end-to-end workflows and component interactions
 """
 import asyncio
@@ -22,7 +22,7 @@ from api.config import settings
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create test database engine."""
-    test_db_url = settings.DATABASE_URL.replace("ffmpeg_api", "ffmpeg_api_test")
+    test_db_url = settings.DATABASE_URL.replace("rendiff", "rendiff_test")
     engine = create_async_engine(test_db_url, echo=True)
     
     # Create tables
@@ -59,7 +59,7 @@ async def test_client():
 def sample_video():
     """Create a sample video file for testing."""
     # Create a minimal test video using FFmpeg
-    test_dir = Path(tempfile.gettempdir()) / "ffmpeg_test"
+    test_dir = Path(tempfile.gettempdir()) / "rendiff_test"
     test_dir.mkdir(exist_ok=True)
     
     video_path = test_dir / "test_video.mp4"

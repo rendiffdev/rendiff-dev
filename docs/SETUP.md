@@ -572,13 +572,13 @@ docker compose up -d --scale worker-genai=2
 #### Database Optimization
 ```bash
 # Monitor database performance
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+docker compose exec postgres psql -U rendiff_user -d rendiff -c "
 SELECT query, mean_time, calls 
 FROM pg_stat_statements 
 ORDER BY mean_time DESC LIMIT 10;"
 
 # Analyze table usage
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+docker compose exec postgres psql -U rendiff_user -d rendiff -c "
 SELECT schemaname,tablename,attname,n_distinct,correlation 
 FROM pg_stats WHERE tablename='jobs';"
 ```
@@ -604,4 +604,4 @@ FROM pg_stats WHERE tablename='jobs';"
 | **[🏭 Production Setup](#production-setup)** | Production best practices | Production setup |
 | **[🛡️ HTTPS/SSL Configuration](#httpssl-configuration)** | Security configuration | Security hardening |
 
-**Need help?** Check the [troubleshooting section](#troubleshooting) or [open an issue](https://github.com/rendiffdev/ffmpeg-api/issues).
+**Need help?** Check the [troubleshooting section](#troubleshooting) or [open an issue](https://github.com/rendiffdev/rendiff-dev/issues).

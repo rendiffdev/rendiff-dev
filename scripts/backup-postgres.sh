@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Configuration
 BACKUP_DIR="${BACKUP_DIR:-/backup/postgres}"
-S3_BUCKET="${S3_BUCKET:-ffmpeg-api-backups}"
+S3_BUCKET="${S3_BUCKET:-rendiff-backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-}"
 SLACK_WEBHOOK="${SLACK_WEBHOOK:-}"
@@ -14,13 +14,13 @@ SLACK_WEBHOOK="${SLACK_WEBHOOK:-}"
 # Database connection
 DB_HOST="${POSTGRES_HOST:-postgres}"
 DB_PORT="${POSTGRES_PORT:-5432}"
-DB_NAME="${POSTGRES_DB:-ffmpeg_api}"
-DB_USER="${POSTGRES_USER:-ffmpeg_user}"
+DB_NAME="${POSTGRES_DB:-rendiff}"
+DB_USER="${POSTGRES_USER:-rendiff_user}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 # Timestamp
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_NAME="ffmpeg_api_backup_${TIMESTAMP}"
+BACKUP_NAME="rendiff_backup_${TIMESTAMP}"
 
 # Logging
 log() {

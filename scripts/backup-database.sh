@@ -14,7 +14,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # Default configuration
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/ffmpeg-api}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/rendiff}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
 BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-}"
 AWS_S3_BUCKET="${AWS_S3_BUCKET:-}"
@@ -24,7 +24,7 @@ LOG_LEVEL="${LOG_LEVEL:-INFO}"
 # Database configuration
 DB_HOST="${DATABASE_HOST:-localhost}"
 DB_PORT="${DATABASE_PORT:-5432}"
-DB_NAME="${DATABASE_NAME:-ffmpeg_api}"
+DB_NAME="${DATABASE_NAME:-rendiff}"
 DB_USER="${DATABASE_USER:-postgres}"
 DB_PASSWORD="${DATABASE_PASSWORD:-}"
 

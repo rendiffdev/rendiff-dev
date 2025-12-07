@@ -5,12 +5,12 @@
 set -euo pipefail
 
 # Configuration
-S3_BUCKET="${S3_BUCKET:-ffmpeg-api-backups}"
+S3_BUCKET="${S3_BUCKET:-rendiff-backups}"
 RESTORE_DIR="${RESTORE_DIR:-/tmp/restore}"
 TARGET_DB_HOST="${TARGET_DB_HOST:-postgres}"
 TARGET_DB_PORT="${TARGET_DB_PORT:-5432}"
-TARGET_DB_NAME="${TARGET_DB_NAME:-ffmpeg_api}"
-TARGET_DB_USER="${TARGET_DB_USER:-ffmpeg_user}"
+TARGET_DB_NAME="${TARGET_DB_NAME:-rendiff}"
+TARGET_DB_USER="${TARGET_DB_USER:-rendiff_user}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 
 # Recovery options
@@ -34,7 +34,7 @@ list_backups() {
     
     aws s3api list-objects-v2 \
         --bucket "$S3_BUCKET" \
-        --prefix "postgres/ffmpeg_api_backup_" \
+        --prefix "postgres/rendiff_backup_" \
         --query "Contents[?ends_with(Key, '.dump.gz') || ends_with(Key, '.dump.gz.gpg')].[Key,LastModified,Size]" \
         --output table
 }
@@ -43,7 +43,7 @@ list_backups() {
 get_latest_backup() {
     aws s3api list-objects-v2 \
         --bucket "$S3_BUCKET" \
-        --prefix "postgres/ffmpeg_api_backup_" \
+        --prefix "postgres/rendiff_backup_" \
         --query "Contents[?ends_with(Key, '.dump.gz') || ends_with(Key, '.dump.gz.gpg')] | sort_by(@, &LastModified) | [-1].Key" \
         --output text
 }
@@ -288,7 +288,7 @@ main() {
                 error "RECOVERY_TIMESTAMP required for specific recovery mode"
                 exit 1
             fi
-            backup_key="postgres/ffmpeg_api_backup_${RECOVERY_TIMESTAMP}.dump.gz"
+            backup_key="postgres/rendiff_backup_${RECOVERY_TIMESTAMP}.dump.gz"
             ;;
         list)
             list_backups
