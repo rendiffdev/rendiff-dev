@@ -43,8 +43,8 @@ class JobService:
         # Job creation
         logs.append(f"[{job.created_at.isoformat()}] Job created: {job_id}")
         logs.append(f"[{job.created_at.isoformat()}] Status: QUEUED")
-        logs.append(f"[{job.created_at.isoformat()}] Input URL: {job.input_url}")
-        logs.append(f"[{job.created_at.isoformat()}] Operations: {len(job.operations)} operations requested")
+        logs.append(f"[{job.created_at.isoformat()}] Input: {job.input_path}")
+        logs.append(f"[{job.created_at.isoformat()}] Operations: {len(job.operations) if job.operations else 0} operations requested")
         
         # Job parameters
         if job.options:
@@ -85,7 +85,7 @@ class JobService:
         if job.completed_at:
             if job.status == JobStatus.COMPLETED:
                 logs.append(f"[{job.completed_at.isoformat()}] Status: COMPLETED")
-                logs.append(f"[{job.completed_at.isoformat()}] Output URL: {job.output_url}")
+                logs.append(f"[{job.completed_at.isoformat()}] Output: {job.output_path}")
                 logs.append(f"[{job.completed_at.isoformat()}] Processing completed successfully")
                 
                 # Calculate processing time
