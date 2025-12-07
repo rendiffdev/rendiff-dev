@@ -1,6 +1,8 @@
-# FFmpeg API Documentation
+# Rendiff API Documentation
 
-Complete API reference for the production-ready FFmpeg API service.
+Complete API reference for the production-ready Rendiff service.
+
+> **Powered by FFmpeg:** All media processing is handled by FFmpeg under the hood.
 
 ## Table of Contents
 
@@ -15,7 +17,7 @@ Complete API reference for the production-ready FFmpeg API service.
 
 ## Overview
 
-The FFmpeg API provides a RESTful interface to FFmpeg's media processing capabilities with hardware acceleration support. 
+Rendiff provides a RESTful interface to FFmpeg's media processing capabilities with hardware acceleration support. 
 
 > **💡 New to setup?** See the [Setup Guide](SETUP.md) for deployment instructions.
 

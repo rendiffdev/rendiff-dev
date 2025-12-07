@@ -1,7 +1,8 @@
 """
-Rendiff FFmpeg API - Production-Grade Main Application
+Rendiff - Production-Grade Media Processing API (Powered by FFmpeg)
 
-High-performance, scalable FFmpeg processing API with enterprise features.
+High-performance, scalable media processing API with enterprise features.
+All media processing operations are powered by FFmpeg (https://ffmpeg.org/).
 """
 from contextlib import asynccontextmanager
 from typing import Any, Dict
@@ -71,8 +72,8 @@ async def lifespan(app: FastAPI):
 def create_application() -> FastAPI:
     """Create and configure FastAPI application with optimized settings."""
     application = FastAPI(
-        title="Rendiff FFmpeg API",
-        description="Production-grade FFmpeg processing API for professional video workflows",
+        title="Rendiff API",
+        description="Production-grade media processing API powered by FFmpeg for professional video workflows",
         version=settings.VERSION,
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
@@ -85,7 +86,7 @@ def create_application() -> FastAPI:
         },
         license_info={
             "name": "MIT License",
-            "url": "https://github.com/rendiffdev/ffmpeg-api/blob/main/LICENSE",
+            "url": "https://github.com/rendiffdev/rendiff-dev/blob/main/LICENSE",
         },
     )
     
@@ -169,10 +170,10 @@ async def root() -> Dict[str, Any]:
     and available endpoints for integration.
     """
     return {
-        "name": "Rendiff FFmpeg API",
+        "name": "Rendiff API",
         "version": settings.VERSION,
         "status": "operational",
-        "description": "Production-grade FFmpeg processing API",
+        "description": "Production-grade media processing API powered by FFmpeg",
         "endpoints": {
             "documentation": "/docs",
             "health": "/api/v1/health",
@@ -188,9 +189,10 @@ async def root() -> Dict[str, Any]:
             "real_time_progress": True,
             "batch_operations": True
         },
+        "powered_by": "FFmpeg (https://ffmpeg.org/)",
         "contact": {
             "website": "https://rendiff.dev",
-            "repository": "https://github.com/rendiffdev/ffmpeg-api",
+            "repository": "https://github.com/rendiffdev/rendiff-dev",
             "email": "dev@rendiff.dev"
         }
     }

@@ -1,19 +1,20 @@
 #!/bin/bash
 
-# Rendiff FFmpeg API - Simple Setup Script
+# Rendiff - Simple Setup Script
+# A REST API layer powered by FFmpeg for media processing
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
-echo "🚀 FFmpeg API Setup"
-echo "=================="
+echo "🚀 Rendiff Setup (Powered by FFmpeg)"
+echo "======================================"
 
 # Function to show usage
 show_usage() {
     echo "Usage: $0 [OPTION]"
     echo ""
-    echo "🚀 FFmpeg API - Production-Ready Setup Script"
+    echo "🚀 Rendiff - Production-Ready Setup Script (Powered by FFmpeg)"
     echo ""
     echo "Deployment Options:"
     echo "  --development    🛠️  Fast local development (SQLite, debug mode, no auth)"
@@ -76,7 +77,7 @@ API_LOG_LEVEL=debug
 API_WORKERS=1
 
 # Database (SQLite for simplicity)
-DATABASE_URL=sqlite+aiosqlite:///data/ffmpeg_api.db
+DATABASE_URL=sqlite+aiosqlite:///data/rendiff.db
 
 # Queue (Redis)
 REDIS_URL=redis://redis:6379/0

@@ -45,8 +45,8 @@ FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS runtime-gpu
 # Set labels
 LABEL maintainer="rendiff-team" \
       version="1.0" \
-      description="FFmpeg API Worker (GPU)" \
-      org.opencontainers.image.source="https://github.com/rendiffdev/ffmpeg-api"
+      description="Rendiff Worker - GPU (Powered by FFmpeg)" \
+      org.opencontainers.image.source="https://github.com/rendiffdev/rendiff-dev"
 
 # Install Python with consistent version
 RUN apt-get update && apt-get install -y \
@@ -89,8 +89,8 @@ FROM python:${PYTHON_VERSION}-slim AS runtime-cpu
 # Set labels
 LABEL maintainer="rendiff-team" \
       version="1.0" \
-      description="FFmpeg API Worker (CPU)" \
-      org.opencontainers.image.source="https://github.com/rendiffdev/ffmpeg-api"
+      description="Rendiff Worker - CPU (Powered by FFmpeg)" \
+      org.opencontainers.image.source="https://github.com/rendiffdev/rendiff-dev"
 
 # Install runtime dependencies (no build tools)
 RUN apt-get update && apt-get install -y \

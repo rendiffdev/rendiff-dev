@@ -1,6 +1,8 @@
 # Setup Guide
 
-Complete setup guide for the FFmpeg API platform covering all deployment scenarios from development to production.
+Complete setup guide for Rendiff covering all deployment scenarios from development to production.
+
+> **Powered by FFmpeg:** Rendiff is a REST API layer built on top of FFmpeg for media processing.
 
 ## Table of Contents
 
@@ -19,8 +21,8 @@ Complete setup guide for the FFmpeg API platform covering all deployment scenari
 
 ```bash
 # Clone and navigate
-git clone https://github.com/rendiffdev/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/rendiffdev/rendiff-dev.git
+cd rendiff-dev
 
 # Choose your setup type
 ./setup.sh --help                    # Show all options

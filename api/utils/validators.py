@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple
 from urllib.parse import urlparse
 
+from api.config import settings
 from api.services.storage import StorageService
 
 
@@ -225,9 +226,10 @@ def validate_operations(operations: List[Dict[str, Any]]) -> List[Dict[str, Any]
     """Validate and normalize operations list with enhanced security checks."""
     if not operations:
         raise ValueError("Operations list cannot be empty")
-    
-    if len(operations) > 50:  # Prevent DOS through too many operations
-        raise ValueError("Too many operations specified (maximum 50)")
+
+    max_ops = settings.MAX_OPERATIONS_PER_JOB
+    if len(operations) > max_ops:  # Prevent DOS through too many operations
+        raise ValueError(f"Too many operations specified (maximum {max_ops})")
     
     validated = []
     

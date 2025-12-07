@@ -1,13 +1,14 @@
-# Production-Grade FFmpeg API Docker Compose Configuration
+# Rendiff - Production-Grade Media Processing API (Powered by FFmpeg)
+# Docker Compose Configuration
 # Optimized for performance, security, and maintainability
 
-name: ffmpeg-api
+name: rendiff
 
 services:
   # Traefik Reverse Proxy
   traefik:
     image: traefik:v3.1
-    container_name: ffmpeg_traefik
+    container_name: rendiff_traefik
     command:
       - --configFile=/etc/traefik/traefik.yml
     ports:
@@ -22,7 +23,7 @@ services:
     depends_on:
       - api
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -34,14 +35,14 @@ services:
   # API Gateway (now behind Traefik)
   krakend:
     image: devopsfaith/krakend:2.7
-    container_name: ffmpeg_gateway
+    container_name: rendiff_gateway
     volumes:
       - ./config/krakend.json:/etc/krakend/krakend.json:ro
     # No port exposure - accessed through Traefik
     depends_on:
       - api
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -51,13 +52,15 @@ services:
       - "traefik.http.services.krakend.loadbalancer.server.port=8080"
 
   # Database Service
+  # WARNING: Default password is for DEVELOPMENT ONLY
+  # For production, use compose.prod.yml or set POSTGRES_PASSWORD in .env
   postgres:
     image: postgres:16-alpine
-    container_name: ffmpeg_postgres
+    container_name: rendiff_postgres
     environment:
-      POSTGRES_DB: ffmpeg_api
-      POSTGRES_USER: ffmpeg_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-defaultpassword}
+      POSTGRES_DB: rendiff
+      POSTGRES_USER: rendiff_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_only_password_change_me}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_WALDIR: /var/lib/postgresql/waldir
@@ -66,10 +69,10 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ffmpeg_user -d ffmpeg_api"]
+      test: ["CMD-SHELL", "pg_isready -U rendiff_user -d rendiff"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -93,7 +96,7 @@ services:
   # Queue Service (Redis)
   redis:
     image: redis:7.2-alpine
-    container_name: ffmpeg_redis
+    container_name: rendiff_redis
     command: >
       redis-server
       --appendonly yes
@@ -115,7 +118,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -131,13 +134,13 @@ services:
       dockerfile: docker/api/Dockerfile
     command: ["/app/scripts/docker-entrypoint.sh", "migrate"]
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ffmpeg_user:defaultpassword@postgres:5432/ffmpeg_api}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://rendiff_user:dev_only_password_change_me@postgres:5432/rendiff}
       - PYTHONUNBUFFERED=1
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: "no"
 
   # API Service
@@ -148,9 +151,9 @@ services:
       platforms:
         - linux/amd64
         - linux/arm64
-    container_name: ffmpeg_api
+    # Note: container_name removed to allow replicas > 1
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://ffmpeg_user:defaultpassword@postgres:5432/ffmpeg_api}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       LOG_LEVEL: info
@@ -160,8 +163,8 @@ services:
       API_WORKERS: "4"
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: ffmpeg_user
-      POSTGRES_DB: ffmpeg_api
+      POSTGRES_USER: rendiff_user
+      POSTGRES_DB: rendiff
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       # Security headers
@@ -177,7 +180,7 @@ services:
       db-migrate:
         condition: service_completed_successfully
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "http://localhost:8000/api/v1/health"]
@@ -214,9 +217,9 @@ services:
       platforms:
         - linux/amd64
         - linux/arm64
-    container_name: rendiff_worker
+    # Note: container_name removed to allow replicas > 1
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://ffmpeg_user:defaultpassword@postgres:5432/ffmpeg_api}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       WORKER_TYPE: cpu
@@ -234,7 +237,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     deploy:
       replicas: 2
@@ -261,7 +264,7 @@ services:
         - linux/amd64
     container_name: rendiff_worker_gpu
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://ffmpeg_user:defaultpassword@postgres:5432/ffmpeg_api}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       WORKER_TYPE: gpu
@@ -282,7 +285,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     deploy:
       replicas: 1
@@ -318,17 +321,18 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     profiles:
       - monitoring
 
   # Monitoring - Grafana
+  # WARNING: Default password is for DEVELOPMENT ONLY
   grafana:
     image: grafana/grafana:11.2.0
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-dev_admin_change_me}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SECURITY_DISABLE_GRAVATAR: "true"
       GF_SECURITY_COOKIE_SECURE: "true"
@@ -341,7 +345,7 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - ffmpeg-net
+      - rendiff-net
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -349,7 +353,7 @@ services:
       - monitoring
 
 networks:
-  ffmpeg-net:
+  rendiff-net:
     driver: bridge
     driver_opts:
       com.docker.network.bridge.name: br-rendiff

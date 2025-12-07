@@ -1,6 +1,8 @@
-# Contributing to FFmpeg API
+# Contributing to Rendiff
 
-We welcome contributions to the FFmpeg API project! This guide will help you get started.
+We welcome contributions to Rendiff! This guide will help you get started.
+
+> **Note:** Rendiff is a REST API layer powered by FFmpeg. All media processing is handled by FFmpeg under the hood.
 
 ## Code of Conduct
 
@@ -30,8 +32,8 @@ Please note that this project is released with a Contributor Code of Conduct. By
 
 ```bash
 # Clone your fork
-git clone https://github.com/yourusername/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/yourusername/rendiff-dev.git
+cd rendiff-dev
 
 # Install dependencies
 pip install -r requirements.txt
@@ -94,4 +96,4 @@ Closes #123
 
 Feel free to open an issue for any questions about contributing.
 
-Thank you for contributing to FFmpeg API!
+Thank you for contributing to Rendiff!

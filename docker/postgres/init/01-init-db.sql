@@ -1,28 +1,29 @@
--- FFmpeg API Database Initialization Script
+-- Rendiff Database Initialization Script
 -- This script runs automatically when PostgreSQL container starts for the first time
+-- Note: Rendiff is powered by FFmpeg for media processing
 
 -- Create extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
 
 -- Create additional database if needed for testing
--- CREATE DATABASE ffmpeg_api_test OWNER ffmpeg_user;
+-- CREATE DATABASE rendiff_test OWNER rendiff_user;
 
 -- Grant additional permissions
-GRANT ALL PRIVILEGES ON DATABASE ffmpeg_api TO ffmpeg_user;
+GRANT ALL PRIVILEGES ON DATABASE rendiff TO rendiff_user;
 
 -- Create schemas (if needed for multi-tenancy in future)
--- CREATE SCHEMA IF NOT EXISTS api AUTHORIZATION ffmpeg_user;
--- CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION ffmpeg_user;
+-- CREATE SCHEMA IF NOT EXISTS api AUTHORIZATION rendiff_user;
+-- CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION rendiff_user;
 
 -- Ensure user has necessary permissions
-ALTER USER ffmpeg_user CREATEDB;
-ALTER USER ffmpeg_user WITH SUPERUSER;
+ALTER USER rendiff_user CREATEDB;
+ALTER USER rendiff_user WITH SUPERUSER;
 
 -- Set default settings
-ALTER DATABASE ffmpeg_api SET timezone TO 'UTC';
-ALTER DATABASE ffmpeg_api SET log_statement TO 'all';
-ALTER DATABASE ffmpeg_api SET log_min_duration_statement TO 1000;
+ALTER DATABASE rendiff SET timezone TO 'UTC';
+ALTER DATABASE rendiff SET log_statement TO 'all';
+ALTER DATABASE rendiff SET log_min_duration_statement TO 1000;
 
 -- Performance optimizations for video processing workloads
 ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
@@ -71,5 +72,5 @@ $$ LANGUAGE plpgsql;
 -- Log successful initialization
 DO $$
 BEGIN
-    RAISE NOTICE 'FFmpeg API Database initialized successfully at %', NOW();
+    RAISE NOTICE 'Rendiff Database initialized successfully at %', NOW();
 END $$;
