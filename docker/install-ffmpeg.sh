@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # Install latest FFmpeg from BtbN/FFmpeg-Builds (static builds)
 # This ensures we get the latest FFmpeg with all codecs enabled
 
@@ -10,10 +10,12 @@ echo "Installing FFmpeg..."
 ARCH=$(uname -m)
 case $ARCH in
     x86_64)
-        FFMPEG_ARCH="amd64"
+        FFMPEG_ARCH="linux64"
+        DOWNLOAD_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
         ;;
     aarch64|arm64)
-        FFMPEG_ARCH="arm64"
+        FFMPEG_ARCH="linuxarm64"
+        DOWNLOAD_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz"
         ;;
     *)
         echo "Unsupported architecture: $ARCH"
@@ -21,15 +23,11 @@ case $ARCH in
         ;;
 esac
 
-# FFmpeg version and download URL
-FFMPEG_VERSION="6.1"
-DOWNLOAD_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
-
 # Create temporary directory
 TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
 
-echo "Downloading FFmpeg for $ARCH..."
+echo "Downloading FFmpeg for $ARCH from $DOWNLOAD_URL..."
 curl -L -o ffmpeg.tar.xz "$DOWNLOAD_URL"
 
 echo "Extracting FFmpeg..."
@@ -49,5 +47,4 @@ ffprobe -version
 cd /
 rm -rf "$TEMP_DIR"
 
-echo "FFmpeg installation completed successfully\!"
-EOF < /dev/null
+echo "FFmpeg installation completed successfully!"
