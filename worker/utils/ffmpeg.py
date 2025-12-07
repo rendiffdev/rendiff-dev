@@ -518,50 +518,97 @@ class FFmpegCommandBuilder:
     def _handle_transcode(self, params: Dict[str, Any]) -> List[str]:
         """Handle video transcoding parameters."""
         cmd_parts = []
-        
+
+        # Hardware acceleration preference
+        hw_pref = params.get('hardware_acceleration', 'auto')
+
         # Video codec
         if 'video_codec' in params:
             codec = params['video_codec']
-            encoder = HardwareAcceleration.get_best_encoder(codec, self.hardware_caps)
+            if hw_pref == 'none' or codec == 'copy':
+                # Use software encoder or copy
+                encoder = 'copy' if codec == 'copy' else f"lib{codec}" if codec in ('x264', 'x265') else codec
+            else:
+                encoder = HardwareAcceleration.get_best_encoder(codec, self.hardware_caps)
             cmd_parts.extend(['-c:v', encoder])
-        
+
         # Audio codec
         if 'audio_codec' in params:
             cmd_parts.extend(['-c:a', params['audio_codec']])
-        
-        # Bitrate
+
+        # Video bitrate with VBV buffer
         if 'video_bitrate' in params:
-            cmd_parts.extend(['-b:v', params['video_bitrate']])
+            cmd_parts.extend(['-b:v', str(params['video_bitrate'])])
+        if 'max_bitrate' in params:
+            cmd_parts.extend(['-maxrate', str(params['max_bitrate'])])
+        if 'buffer_size' in params:
+            cmd_parts.extend(['-bufsize', str(params['buffer_size'])])
+
+        # Audio bitrate
         if 'audio_bitrate' in params:
-            cmd_parts.extend(['-b:a', params['audio_bitrate']])
-        
+            cmd_parts.extend(['-b:a', str(params['audio_bitrate'])])
+
         # Resolution
         if 'width' in params and 'height' in params:
             cmd_parts.extend(['-s', f"{params['width']}x{params['height']}"])
-        
+
         # Frame rate
         if 'fps' in params:
             cmd_parts.extend(['-r', str(params['fps'])])
-        
+
         # Quality settings
         if 'crf' in params:
             cmd_parts.extend(['-crf', str(params['crf'])])
         if 'preset' in params:
             cmd_parts.extend(['-preset', params['preset']])
-        
+
+        # Profile (H.264/H.265)
+        if 'profile' in params:
+            cmd_parts.extend(['-profile:v', params['profile']])
+
+        # Pixel format
+        if 'pixel_format' in params:
+            cmd_parts.extend(['-pix_fmt', params['pixel_format']])
+
+        # GOP size (keyframe interval)
+        if 'gop_size' in params:
+            cmd_parts.extend(['-g', str(params['gop_size'])])
+
+        # B-frames
+        if 'b_frames' in params:
+            cmd_parts.extend(['-bf', str(params['b_frames'])])
+
+        # Audio sample rate
+        if 'audio_sample_rate' in params:
+            cmd_parts.extend(['-ar', str(params['audio_sample_rate'])])
+
+        # Audio channels
+        if 'audio_channels' in params:
+            cmd_parts.extend(['-ac', str(params['audio_channels'])])
+
+        # Faststart for web streaming (move moov atom to beginning)
+        if params.get('faststart', True):
+            cmd_parts.extend(['-movflags', '+faststart'])
+
         return cmd_parts
     
     def _handle_trim(self, params: Dict[str, Any]) -> List[str]:
         """Handle video trimming."""
         cmd_parts = []
-        
-        if 'start_time' in params:
-            cmd_parts.extend(['-ss', str(params['start_time'])])
+
+        # Support both 'start'/'start_time' naming conventions
+        start = params.get('start') or params.get('start_time')
+        if start is not None:
+            cmd_parts.extend(['-ss', str(start)])
+
+        # Support both 'duration' and 'end'/'end_time'
         if 'duration' in params:
             cmd_parts.extend(['-t', str(params['duration'])])
-        elif 'end_time' in params:
-            cmd_parts.extend(['-to', str(params['end_time'])])
-        
+        else:
+            end = params.get('end') or params.get('end_time')
+            if end is not None:
+                cmd_parts.extend(['-to', str(end)])
+
         return cmd_parts
     
     def _handle_watermark(self, params: Dict[str, Any]) -> str:
@@ -1031,18 +1078,27 @@ class FFmpegWrapper:
     
     def validate_operations(self, operations: List[Dict[str, Any]]) -> bool:
         """Validate operations before processing."""
-        valid_operations = {'transcode', 'trim', 'watermark', 'filter', 'stream_map', 'streaming'}
-        
+        valid_operations = {
+            'transcode', 'trim', 'watermark', 'filter', 'stream_map', 'streaming', 'stream',
+            'scale', 'crop', 'rotate', 'flip', 'audio', 'subtitle', 'concat', 'thumbnail'
+        }
+
+        if not operations:
+            return True  # Empty operations list is valid
+
         for operation in operations:
             if 'type' not in operation:
                 return False
             if operation['type'] not in valid_operations:
                 return False
-            
+
             # Additional validation per operation type
+            # Support both flat params and nested 'params' structure
             if operation['type'] == 'trim':
                 params = operation.get('params', {})
-                if 'start_time' not in params and 'duration' not in params and 'end_time' not in params:
+                if not params:
+                    params = {k: v for k, v in operation.items() if k != 'type'}
+                if 'start' not in params and 'start_time' not in params and 'duration' not in params and 'end' not in params and 'end_time' not in params:
                     return False
-        
+
         return True

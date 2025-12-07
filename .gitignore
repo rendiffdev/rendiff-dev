@@ -212,3 +212,4 @@ k8s/*/secrets/
 local/
 dev/
 development/
+data/
