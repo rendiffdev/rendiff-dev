@@ -275,6 +275,8 @@ def validate_operations(operations: List[Dict[str, Any]]) -> List[Dict[str, Any]
             validated_op = validate_subtitle_operation(op)
         elif op_type == "concat":
             validated_op = validate_concat_operation(op)
+        elif op_type == "thumbnail":
+            validated_op = validate_thumbnail_operation(op)
         else:
             raise ValueError(f"Unknown operation type: {op_type}")
         
@@ -608,6 +610,92 @@ def validate_subtitle_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     return validated
 
 
+def validate_thumbnail_operation(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate thumbnail extraction operation."""
+    validated = {"type": "thumbnail"}
+
+    # Validate mode
+    mode = op.get("mode", "single")
+    allowed_modes = {"single", "multiple", "best", "sprite"}
+    if mode not in allowed_modes:
+        raise ValueError(f"Invalid thumbnail mode: {mode}. Allowed: {', '.join(allowed_modes)}")
+    validated["mode"] = mode
+
+    # Validate time (for single mode)
+    if "time" in op:
+        time = op["time"]
+        if isinstance(time, (int, float)):
+            if time < 0 or time > 86400:
+                raise ValueError("Time out of valid range (0-86400 seconds)")
+            validated["time"] = float(time)
+        elif isinstance(time, str):
+            validated["time"] = parse_time_string(time)
+        else:
+            raise ValueError("Time must be a number or time string")
+
+    # Validate count
+    if "count" in op:
+        count = op["count"]
+        if not isinstance(count, int) or count < 1 or count > 1000:
+            raise ValueError("Count must be an integer between 1 and 1000")
+        validated["count"] = count
+
+    # Validate interval
+    if "interval" in op:
+        interval = op["interval"]
+        if not isinstance(interval, (int, float)) or interval <= 0:
+            raise ValueError("Interval must be a positive number")
+        validated["interval"] = float(interval)
+
+    # Validate dimensions
+    if "width" in op:
+        width = op["width"]
+        if not isinstance(width, int) or width < 16 or width > 7680:
+            raise ValueError("Width must be an integer between 16 and 7680")
+        validated["width"] = width
+
+    if "height" in op:
+        height = op["height"]
+        if not isinstance(height, int) or height < 16 or height > 4320:
+            raise ValueError("Height must be an integer between 16 and 4320")
+        validated["height"] = height
+
+    # Validate quality (JPEG quality, 2-31 where lower is better)
+    if "quality" in op:
+        quality = op["quality"]
+        if not isinstance(quality, int) or quality < 2 or quality > 31:
+            raise ValueError("Quality must be an integer between 2 and 31 (lower is better)")
+        validated["quality"] = quality
+
+    # Sprite-specific options
+    if mode == "sprite":
+        if "cols" in op:
+            cols = op["cols"]
+            if not isinstance(cols, int) or cols < 1 or cols > 20:
+                raise ValueError("Cols must be an integer between 1 and 20")
+            validated["cols"] = cols
+
+        if "rows" in op:
+            rows = op["rows"]
+            if not isinstance(rows, int) or rows < 1 or rows > 20:
+                raise ValueError("Rows must be an integer between 1 and 20")
+            validated["rows"] = rows
+
+        if "tile_width" in op:
+            validated["tile_width"] = int(op["tile_width"])
+        if "tile_height" in op:
+            validated["tile_height"] = int(op["tile_height"])
+
+    # Best mode options
+    if mode == "best" and "sample_frames" in op:
+        sample = op["sample_frames"]
+        if not isinstance(sample, int) or sample < 10 or sample > 1000:
+            raise ValueError("Sample frames must be an integer between 10 and 1000")
+        validated["sample_frames"] = sample
+
+    return validated
+
+
 def validate_concat_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     """Validate concatenation operation."""
     validated = {"type": "concat"}
@@ -637,12 +725,22 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     validated = {"type": "transcode"}
 
     # Allowed video codecs
-    ALLOWED_VIDEO_CODECS = {'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1', 'libx264', 'libx265', 'copy', 'prores', 'dnxhd'}
-    ALLOWED_AUDIO_CODECS = {'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'eac3', 'libfdk_aac', 'flac', 'pcm_s16le', 'pcm_s24le', 'copy'}
-    ALLOWED_PRESETS = {'ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'}
+    ALLOWED_VIDEO_CODECS = {
+        'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1',
+        'libx264', 'libx265', 'libvpx', 'libvpx-vp9', 'libaom-av1', 'libsvtav1',
+        'prores', 'prores_ks', 'dnxhd', 'dnxhr', 'copy'
+    }
+    ALLOWED_AUDIO_CODECS = {
+        'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'eac3',
+        'libfdk_aac', 'libopus', 'libvorbis', 'libmp3lame',
+        'flac', 'pcm_s16le', 'pcm_s24le', 'pcm_s32le', 'pcm_f32le', 'copy'
+    }
+    ALLOWED_PRESETS = {'ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow', 'placebo'}
     ALLOWED_PROFILES = {'baseline', 'main', 'high', 'high10', 'high422', 'high444'}
-    ALLOWED_PIXEL_FORMATS = {'yuv420p', 'yuv422p', 'yuv444p', 'yuv420p10le', 'yuv422p10le', 'rgb24', 'rgba'}
-    ALLOWED_HW_ACCEL = {'auto', 'none', 'nvenc', 'qsv', 'vaapi', 'videotoolbox'}
+    ALLOWED_PIXEL_FORMATS = {'yuv420p', 'yuv422p', 'yuv444p', 'yuv420p10le', 'yuv422p10le', 'yuv444p10le', 'rgb24', 'rgba', 'nv12', 'p010le'}
+    ALLOWED_HW_ACCEL = {'auto', 'none', 'nvenc', 'qsv', 'vaapi', 'videotoolbox', 'amf'}
+    ALLOWED_TUNES = {'film', 'animation', 'grain', 'stillimage', 'fastdecode', 'zerolatency', 'psnr', 'ssim'}
+    ALLOWED_LEVELS = {'1', '1.1', '1.2', '1.3', '2', '2.1', '2.2', '3', '3.1', '3.2', '4', '4.1', '4.2', '5', '5.1', '5.2', '6', '6.1', '6.2'}
 
     # Validate video codec
     if "video_codec" in op:
@@ -755,6 +853,59 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     # Validate two-pass encoding
     if "two_pass" in op:
         validated["two_pass"] = bool(op["two_pass"])
+
+    # Validate tune parameter (for x264/x265)
+    if "tune" in op:
+        tune = op["tune"]
+        if not isinstance(tune, str):
+            raise ValueError("Tune must be a string")
+        if tune not in ALLOWED_TUNES:
+            raise ValueError(f"Invalid tune: {tune}. Allowed: {', '.join(ALLOWED_TUNES)}")
+        validated["tune"] = tune
+
+    # Validate level parameter (for H.264/H.265)
+    if "level" in op:
+        level = str(op["level"])
+        if level not in ALLOWED_LEVELS:
+            raise ValueError(f"Invalid level: {level}. Allowed: {', '.join(sorted(ALLOWED_LEVELS, key=lambda x: float(x)))}")
+        validated["level"] = level
+
+    # Validate encoder selection (e.g., 'svt' for SVT-AV1)
+    if "encoder" in op:
+        allowed_encoders = {'default', 'svt', 'aom', 'rav1e'}
+        if op["encoder"] not in allowed_encoders:
+            raise ValueError(f"Invalid encoder: {op['encoder']}")
+        validated["encoder"] = op["encoder"]
+
+    # Validate reference frames
+    if "ref_frames" in op or "refs" in op:
+        refs = op.get("ref_frames") or op.get("refs")
+        if isinstance(refs, int):
+            if refs < 1 or refs > 16:
+                raise ValueError("Reference frames out of valid range (1-16)")
+            validated["ref_frames"] = refs
+        else:
+            raise ValueError("Reference frames must be an integer")
+
+    # Validate lookahead
+    if "rc_lookahead" in op:
+        lookahead = op["rc_lookahead"]
+        if isinstance(lookahead, int):
+            if lookahead < 0 or lookahead > 250:
+                raise ValueError("RC lookahead out of valid range (0-250)")
+            validated["rc_lookahead"] = lookahead
+        else:
+            raise ValueError("RC lookahead must be an integer")
+
+    # Validate scene change threshold
+    if "sc_threshold" in op:
+        sc = op["sc_threshold"]
+        if isinstance(sc, int):
+            if sc < 0 or sc > 100:
+                raise ValueError("Scene change threshold out of valid range (0-100)")
+            validated["sc_threshold"] = sc
+        else:
+            raise ValueError("Scene change threshold must be an integer")
 
     # Validate audio sample rate
     if "audio_sample_rate" in op:
@@ -885,10 +1036,22 @@ def validate_resource_limits(operations: List[Dict[str, Any]]) -> None:
             if fps and fps > 120:
                 raise ValueError(f"Frame rate too high: {fps} fps (max 120)")
             
-            # Check quality settings
+            # Check quality settings - allow CRF 0 for lossless encoding
             crf = op.get("crf")
-            if crf is not None and crf < 10:
-                raise ValueError(f"CRF too low (too high quality): {crf} (min 10 for resource management)")
+            if crf is not None:
+                # CRF 0-4 is typically lossless/near-lossless, requires explicit opt-in
+                if crf < 0:
+                    raise ValueError(f"CRF cannot be negative: {crf}")
+                elif crf < 5:
+                    # Allow but log warning for very high quality settings
+                    if not op.get("allow_lossless", False):
+                        import structlog
+                        logger = structlog.get_logger()
+                        logger.warning(
+                            "Very low CRF requested (high quality/lossless)",
+                            crf=crf,
+                            tip="Set allow_lossless=true to suppress this warning"
+                        )
         
         elif op.get("type") == "stream":
             # Check streaming variants
