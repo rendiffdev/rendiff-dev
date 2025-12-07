@@ -24,8 +24,8 @@ from api.config import settings
 
 target_metadata = Base.metadata
 
-# Update URL from settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Update URL from settings (use async URL for async migrations)
+config.set_main_option("sqlalchemy.url", settings.database_url_async)
 
 
 def run_migrations_offline() -> None:

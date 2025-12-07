@@ -9,7 +9,7 @@ Uses modern Pydantic 2.10+ patterns with:
 """
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List, Annotated
+from typing import Optional, Dict, Any, List, Annotated, Union
 from uuid import UUID, uuid4
 
 from sqlalchemy import Column, String, JSON, DateTime, Float, Integer, Index
@@ -154,7 +154,7 @@ class ConvertRequest(BaseModel):
     )
 
     input: Annotated[
-        str | Dict[str, Any],
+        Union[str, Dict[str, Any]],
         Field(
             description="Input file path or configuration object",
             examples=["/storage/input/video.mp4", {"path": "/storage/video.mp4", "backend": "s3"}]
@@ -163,7 +163,7 @@ class ConvertRequest(BaseModel):
     ]
 
     output: Annotated[
-        str | Dict[str, Any],
+        Union[str, Dict[str, Any]],
         Field(
             description="Output file path or configuration object",
             examples=["/storage/output/video.webm"]
