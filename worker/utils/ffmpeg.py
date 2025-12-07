@@ -129,7 +129,26 @@ class FFmpegCommandBuilder:
     }
     
     ALLOWED_FILTERS = {
-        'scale', 'crop', 'overlay', 'eq', 'hqdn3d', 'unsharp', 'format', 'colorchannelmixer'
+        # Video scaling/transform
+        'scale', 'crop', 'overlay', 'pad', 'setsar', 'setdar', 'transpose', 'hflip', 'vflip', 'rotate',
+        # Color/quality
+        'eq', 'hqdn3d', 'unsharp', 'format', 'colorchannelmixer', 'lut3d', 'curves', 'lutyuv', 'lutrgb',
+        # Deinterlacing
+        'yadif', 'bwdif', 'w3fdif', 'nnedi',
+        # Frame rate/timing
+        'fps', 'framerate', 'trim', 'atrim', 'setpts', 'asetpts',
+        # Concatenation
+        'concat', 'split', 'asplit',
+        # Audio
+        'volume', 'loudnorm', 'dynaudnorm', 'aresample', 'channelmap', 'pan', 'amerge', 'amix', 'atempo',
+        # Effects
+        'fade', 'afade', 'drawtext', 'subtitles', 'ass', 'boxblur', 'gblur', 'smartblur',
+        # Stabilization
+        'vidstabdetect', 'vidstabtransform', 'deshake',
+        # Thumbnails
+        'thumbnail', 'select', 'tile', 'palettegen', 'paletteuse', 'zoompan',
+        # HDR/color space
+        'zscale', 'tonemap', 'colorspace', 'colormatrix'
     }
     
     ALLOWED_PRESETS = {
@@ -178,11 +197,14 @@ class FFmpegCommandBuilder:
         # Add operations
         video_filters = []
         audio_filters = []
-        
+
         for operation in operations:
             op_type = operation.get('type')
+            # Support both flat and nested params structure
             params = operation.get('params', {})
-            
+            if not params:
+                params = {k: v for k, v in operation.items() if k != 'type'}
+
             if op_type == 'transcode':
                 cmd.extend(self._handle_transcode(params))
             elif op_type == 'trim':
@@ -190,11 +212,25 @@ class FFmpegCommandBuilder:
             elif op_type == 'watermark':
                 video_filters.append(self._handle_watermark(params))
             elif op_type == 'filter':
-                video_filters.extend(self._handle_filters(params))
+                vf, af = self._handle_filters(params)
+                video_filters.extend(vf)
+                audio_filters.extend(af)
             elif op_type == 'stream_map':
                 cmd.extend(self._handle_stream_map(params))
-            elif op_type == 'streaming':
+            elif op_type in ('streaming', 'stream'):
                 cmd.extend(self._handle_streaming(params))
+            elif op_type == 'scale':
+                video_filters.append(self._handle_scale(params))
+            elif op_type == 'crop':
+                video_filters.append(self._handle_crop(params))
+            elif op_type == 'rotate':
+                video_filters.append(self._handle_rotate(params))
+            elif op_type == 'flip':
+                video_filters.append(self._handle_flip(params))
+            elif op_type == 'audio':
+                audio_filters.extend(self._handle_audio(params))
+            elif op_type == 'subtitle':
+                video_filters.append(self._handle_subtitle(params))
         
         # Add video filters
         if video_filters:
@@ -268,24 +304,35 @@ class FFmpegCommandBuilder:
     
     def _validate_operations(self, operations: List[Dict[str, Any]]):
         """Validate operations list for security."""
+        if operations is None:
+            return  # None is valid, treated as empty
         if not isinstance(operations, list):
             raise FFmpegCommandError("Operations must be a list")
-        
-        allowed_operation_types = {'transcode', 'trim', 'watermark', 'filter', 'stream_map', 'streaming'}
-        
+        if not operations:
+            return  # Empty list is valid
+
+        allowed_operation_types = {
+            'transcode', 'trim', 'watermark', 'filter', 'stream_map', 'streaming', 'stream',
+            'scale', 'crop', 'rotate', 'flip', 'audio', 'subtitle', 'concat', 'thumbnail'
+        }
+
         for i, operation in enumerate(operations):
             if not isinstance(operation, dict):
                 raise FFmpegCommandError(f"Operation {i} must be a dictionary")
-            
+
             op_type = operation.get('type')
             if op_type not in allowed_operation_types:
                 raise FFmpegCommandError(f"Unknown operation type: {op_type}")
-            
-            # Validate operation parameters
+
+            # Support both flat params and nested 'params' structure
             params = operation.get('params', {})
+            if not params:
+                # Flat structure: extract params from operation itself
+                params = {k: v for k, v in operation.items() if k != 'type'}
+
             if not isinstance(params, dict):
                 raise FFmpegCommandError(f"Operation {i} params must be a dictionary")
-            
+
             self._validate_operation_params(op_type, params)
     
     def _validate_operation_params(self, op_type: str, params: Dict[str, Any]):
@@ -533,12 +580,13 @@ class FFmpegCommandBuilder:
         
         return overlay_filter
     
-    def _handle_filters(self, params: Dict[str, Any]) -> List[str]:
-        """Handle video filters."""
-        filters = []
-        
-        # Color correction
-        if 'brightness' in params or 'contrast' in params or 'saturation' in params:
+    def _handle_filters(self, params: Dict[str, Any]) -> Tuple[List[str], List[str]]:
+        """Handle video and audio filters. Returns (video_filters, audio_filters)."""
+        video_filters = []
+        audio_filters = []
+
+        # Color correction (eq filter)
+        if 'brightness' in params or 'contrast' in params or 'saturation' in params or 'gamma' in params:
             eq_params = []
             if 'brightness' in params:
                 eq_params.append(f"brightness={params['brightness']}")
@@ -546,17 +594,173 @@ class FFmpegCommandBuilder:
                 eq_params.append(f"contrast={params['contrast']}")
             if 'saturation' in params:
                 eq_params.append(f"saturation={params['saturation']}")
-            filters.append(f"eq={':'.join(eq_params)}")
-        
+            if 'gamma' in params:
+                eq_params.append(f"gamma={params['gamma']}")
+            video_filters.append(f"eq={':'.join(eq_params)}")
+
         # Denoising
         if params.get('denoise'):
-            filters.append(f"hqdn3d={params['denoise']}")
-        
+            strength = params['denoise']
+            if isinstance(strength, bool):
+                video_filters.append("hqdn3d")
+            else:
+                video_filters.append(f"hqdn3d={strength}")
+
         # Sharpening
         if params.get('sharpen'):
-            filters.append(f"unsharp=5:5:{params['sharpen']}:5:5:{params['sharpen']}")
-        
+            strength = params['sharpen']
+            video_filters.append(f"unsharp=5:5:{strength}:5:5:{strength}")
+
+        # Blur
+        if params.get('blur'):
+            strength = params['blur']
+            video_filters.append(f"boxblur={strength}")
+
+        # Deinterlacing
+        if params.get('deinterlace'):
+            mode = params.get('deinterlace_mode', 'send_frame')
+            video_filters.append(f"yadif=mode={mode}")
+
+        # Stabilization
+        if params.get('stabilize'):
+            video_filters.append("vidstabtransform=smoothing=10")
+
+        # Fade in/out
+        if params.get('fade_in'):
+            video_filters.append(f"fade=t=in:st=0:d={params['fade_in']}")
+            audio_filters.append(f"afade=t=in:st=0:d={params['fade_in']}")
+        if params.get('fade_out'):
+            # Note: fade_out duration - actual position needs video duration
+            video_filters.append(f"fade=t=out:d={params['fade_out']}")
+            audio_filters.append(f"afade=t=out:d={params['fade_out']}")
+
+        # Speed adjustment
+        if params.get('speed'):
+            speed = params['speed']
+            video_filters.append(f"setpts={1/speed}*PTS")
+            audio_filters.append(f"atempo={speed}")
+
+        # Named filter support (direct filter specification)
+        if 'name' in params:
+            filter_name = params['name']
+            filter_params_dict = params.get('params', {})
+            if filter_name in self.ALLOWED_FILTERS:
+                if filter_params_dict:
+                    filter_str = f"{filter_name}=" + ':'.join(f"{k}={v}" for k, v in filter_params_dict.items())
+                else:
+                    filter_str = filter_name
+                video_filters.append(filter_str)
+
+        return video_filters, audio_filters
+
+    def _handle_scale(self, params: Dict[str, Any]) -> str:
+        """Handle scale operation."""
+        width = params.get('width', -1)
+        height = params.get('height', -1)
+        algorithm = params.get('algorithm', 'lanczos')
+
+        # Handle special values
+        if width == 'auto' or width == -1:
+            width = -1
+        if height == 'auto' or height == -1:
+            height = -1
+
+        # Build scale filter
+        scale_filter = f"scale={width}:{height}"
+        if algorithm:
+            scale_filter += f":flags={algorithm}"
+
+        return scale_filter
+
+    def _handle_crop(self, params: Dict[str, Any]) -> str:
+        """Handle crop operation."""
+        width = params.get('width', 'iw')
+        height = params.get('height', 'ih')
+        x = params.get('x', 0)
+        y = params.get('y', 0)
+
+        return f"crop={width}:{height}:{x}:{y}"
+
+    def _handle_rotate(self, params: Dict[str, Any]) -> str:
+        """Handle rotation operation."""
+        angle = params.get('angle', 0)
+
+        # Handle common angles with transpose
+        if angle == 90:
+            return "transpose=1"
+        elif angle == -90 or angle == 270:
+            return "transpose=2"
+        elif angle == 180:
+            return "transpose=1,transpose=1"
+        else:
+            # Arbitrary angle rotation
+            return f"rotate={angle}*PI/180"
+
+    def _handle_flip(self, params: Dict[str, Any]) -> str:
+        """Handle flip operation."""
+        direction = params.get('direction', 'horizontal')
+
+        if direction == 'horizontal':
+            return "hflip"
+        elif direction == 'vertical':
+            return "vflip"
+        elif direction == 'both':
+            return "hflip,vflip"
+        else:
+            return "hflip"
+
+    def _handle_audio(self, params: Dict[str, Any]) -> List[str]:
+        """Handle audio processing operations."""
+        filters = []
+
+        # Volume adjustment
+        if 'volume' in params:
+            volume = params['volume']
+            if isinstance(volume, (int, float)):
+                filters.append(f"volume={volume}")
+            elif isinstance(volume, str):
+                filters.append(f"volume={volume}")
+
+        # Audio normalization
+        if params.get('normalize'):
+            norm_type = params.get('normalize_type', 'loudnorm')
+            if norm_type == 'loudnorm':
+                # EBU R128 loudness normalization
+                i = params.get('target_loudness', -24)
+                tp = params.get('true_peak', -2)
+                lra = params.get('loudness_range', 7)
+                filters.append(f"loudnorm=I={i}:TP={tp}:LRA={lra}")
+            elif norm_type == 'dynaudnorm':
+                filters.append("dynaudnorm")
+
+        # Sample rate conversion
+        if 'sample_rate' in params:
+            filters.append(f"aresample={params['sample_rate']}")
+
+        # Channel layout
+        if 'channels' in params:
+            channels = params['channels']
+            if channels == 1:
+                filters.append("pan=mono|c0=0.5*c0+0.5*c1")
+            elif channels == 2:
+                filters.append("pan=stereo|c0=c0|c1=c1")
+
         return filters
+
+    def _handle_subtitle(self, params: Dict[str, Any]) -> str:
+        """Handle subtitle overlay."""
+        subtitle_path = params.get('path', '')
+        if not subtitle_path:
+            return ""
+
+        # Validate subtitle path
+        self._validate_paths(subtitle_path, subtitle_path)
+
+        # Determine subtitle type
+        if subtitle_path.endswith('.ass') or subtitle_path.endswith('.ssa'):
+            return f"ass={subtitle_path}"
+        else:
+            return f"subtitles={subtitle_path}"
     
     def _handle_stream_map(self, params: Dict[str, Any]) -> List[str]:
         """Handle stream mapping."""
