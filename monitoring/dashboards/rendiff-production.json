@@ -1,8 +1,8 @@
 {
   "dashboard": {
     "id": null,
-    "uid": "ffmpeg-api-prod",
-    "title": "FFmpeg API - Production Operations",
+    "uid": "rendiff-prod",
+    "title": "Rendiff - Production Operations",
     "tags": ["ffmpeg", "api", "production", "sre"],
     "timezone": "browser",
     "schemaVersion": 38,
@@ -29,7 +29,7 @@
           "name": "namespace",
           "type": "query",
           "datasource": "$datasource",
-          "query": "label_values(up{job=\"ffmpeg-api\"}, namespace)",
+          "query": "label_values(up{job=\"rendiff\"}, namespace)",
           "current": {
             "value": "default"
           }
@@ -44,7 +44,7 @@
         "id": 1,
         "targets": [
           {
-            "expr": "up{job=\"ffmpeg-api\"}",
+            "expr": "up{job=\"rendiff\"}",
             "legendFormat": "API",
             "refId": "A"
           },
@@ -99,7 +99,7 @@
         "id": 3,
         "targets": [
           {
-            "expr": "sum(rate(http_requests_total{job=\"ffmpeg-api\"}[5m])) by (status)",
+            "expr": "sum(rate(http_requests_total{job=\"rendiff\"}[5m])) by (status)",
             "legendFormat": "{{status}}xx"
           }
         ],
@@ -112,7 +112,7 @@
         "id": 4,
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"ffmpeg-api\"}[5m])) by (le, endpoint))",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"rendiff\"}[5m])) by (le, endpoint))",
             "legendFormat": "{{endpoint}}"
           }
         ],
@@ -125,7 +125,7 @@
         "id": 5,
         "targets": [
           {
-            "expr": "ffmpeg_jobs_active{job=\"ffmpeg-api\"}",
+            "expr": "ffmpeg_jobs_active{job=\"rendiff\"}",
             "legendFormat": "{{status}}"
           }
         ],
@@ -145,7 +145,7 @@
         "id": 6,
         "targets": [
           {
-            "expr": "sum(rate(http_requests_total{job=\"ffmpeg-api\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"ffmpeg-api\"}[5m])) * 100",
+            "expr": "sum(rate(http_requests_total{job=\"rendiff\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"rendiff\"}[5m])) * 100",
             "legendFormat": "Error %"
           }
         ],
@@ -177,7 +177,7 @@
         "id": 8,
         "targets": [
           {
-            "expr": "ffmpeg_queue_depth{job=\"ffmpeg-api\"}",
+            "expr": "ffmpeg_queue_depth{job=\"rendiff\"}",
             "legendFormat": "{{priority}} priority"
           }
         ],
@@ -304,7 +304,7 @@
         "id": 17,
         "targets": [
           {
-            "expr": "pg_stat_database_numbackends{datname=\"ffmpeg_api\"}",
+            "expr": "pg_stat_database_numbackends{datname=\"rendiff\"}",
             "legendFormat": "Active connections"
           },
           {
@@ -320,7 +320,7 @@
         "id": 18,
         "targets": [
           {
-            "expr": "rate(pg_stat_database_blks_hit{datname=\"ffmpeg_api\"}[5m]) / (rate(pg_stat_database_blks_hit{datname=\"ffmpeg_api\"}[5m]) + rate(pg_stat_database_blks_read{datname=\"ffmpeg_api\"}[5m])) * 100",
+            "expr": "rate(pg_stat_database_blks_hit{datname=\"rendiff\"}[5m]) / (rate(pg_stat_database_blks_hit{datname=\"rendiff\"}[5m]) + rate(pg_stat_database_blks_read{datname=\"rendiff\"}[5m])) * 100",
             "legendFormat": "Cache hit ratio"
           }
         ],
@@ -333,7 +333,7 @@
         "id": 19,
         "targets": [
           {
-            "expr": "pg_database_size_bytes{datname=\"ffmpeg_api\"} / 1024 / 1024 / 1024",
+            "expr": "pg_database_size_bytes{datname=\"rendiff\"} / 1024 / 1024 / 1024",
             "legendFormat": "Database size"
           }
         ],
@@ -395,7 +395,7 @@
         "id": 23,
         "targets": [
           {
-            "expr": "topk(10, sum by (api_key_hash) (rate(ffmpeg_api_requests_by_key_total[1h])))",
+            "expr": "topk(10, sum by (api_key_hash) (rate(rendiff_requests_by_key_total[1h])))",
             "format": "table",
             "instant": true
           }
@@ -426,7 +426,7 @@
         "id": 25,
         "targets": [
           {
-            "expr": "(1 - (sum(rate(http_requests_total{job=\"ffmpeg-api\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"ffmpeg-api\"}[5m])))) * 100",
+            "expr": "(1 - (sum(rate(http_requests_total{job=\"rendiff\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"rendiff\"}[5m])))) * 100",
             "legendFormat": "Availability"
           }
         ],
@@ -452,7 +452,7 @@
         "id": 26,
         "targets": [
           {
-            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"ffmpeg-api\"}[5m])) by (le))",
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"rendiff\"}[5m])) by (le))",
             "legendFormat": "P99 Latency"
           }
         ],
@@ -508,7 +508,7 @@
           "dashboardAlerts": true,
           "alertName": "",
           "dashboardTitle": "",
-          "tags": ["ffmpeg-api"]
+          "tags": ["rendiff"]
         }
       }
     ]

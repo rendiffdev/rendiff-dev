@@ -1,4 +1,4 @@
-# FFmpeg API Operational Runbooks
+# Rendiff Operational Runbooks
 
 ## Table of Contents
 
@@ -34,8 +34,8 @@ docker compose exec redis redis-cli ping
 curl -w "@curl-format.txt" -o /dev/null -s https://api.domain.com/api/v1/health
 
 # Database connections
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
-  "SELECT count(*) FROM pg_stat_activity WHERE datname = 'ffmpeg_api';"
+docker compose exec postgres psql -U rendiff_user -d rendiff -c \
+  "SELECT count(*) FROM pg_stat_activity WHERE datname = 'rendiff';"
 
 # Queue depth
 docker compose exec redis redis-cli llen celery
@@ -61,7 +61,7 @@ docker compose exec worker-cpu celery -A worker.main inspect active
 docker stats --no-stream
 
 # Check database slow queries
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
+docker compose exec postgres psql -U rendiff_user -d rendiff -c \
   "SELECT query, mean_exec_time, calls FROM pg_stat_statements 
    WHERE mean_exec_time > 1000 ORDER BY mean_exec_time DESC LIMIT 10;"
 
@@ -78,7 +78,7 @@ docker compose exec redis redis-cli info memory
 2. **Clear slow queries:**
    ```bash
    # Analyze and optimize slow queries
-   docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
+   docker compose exec postgres psql -U rendiff_user -d rendiff -c \
      "ANALYZE jobs; REINDEX TABLE jobs;"
    ```
 
@@ -340,7 +340,7 @@ find /storage -type f -mtime +7 -name "*.tmp" -ls
 **Check processing metrics:**
 ```bash
 # Average processing time by operation
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+docker compose exec postgres psql -U rendiff_user -d rendiff -c "
 SELECT 
     operations->0->>'type' as operation,
     AVG(EXTRACT(EPOCH FROM (completed_at - started_at))) as avg_seconds,
@@ -367,10 +367,10 @@ docker compose restart worker-cpu
 **Check slow queries:**
 ```bash
 # Enable query logging
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
+docker compose exec postgres psql -U rendiff_user -d rendiff -c \
   "ALTER SYSTEM SET log_min_duration_statement = 1000;"
 
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
+docker compose exec postgres psql -U rendiff_user -d rendiff -c \
   "SELECT pg_reload_conf();"
 
 # View slow query log
@@ -380,13 +380,13 @@ docker compose exec postgres tail -f /var/log/postgresql/postgresql.log | grep d
 **Optimize database:**
 ```bash
 # Update statistics
-docker compose exec postgres vacuumdb -U ffmpeg_user -d ffmpeg_api -z
+docker compose exec postgres vacuumdb -U rendiff_user -d rendiff -z
 
 # Reindex tables
-docker compose exec postgres reindexdb -U ffmpeg_user -d ffmpeg_api
+docker compose exec postgres reindexdb -U rendiff_user -d rendiff
 
 # Check table sizes
-docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+docker compose exec postgres psql -U rendiff_user -d rendiff -c "
 SELECT
     schemaname AS table_schema,
     tablename AS table_name,
@@ -425,7 +425,7 @@ LIMIT 10;"
 4. **Verify restoration:**
    ```bash
    # Check data integrity
-   docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c \
+   docker compose exec postgres psql -U rendiff_user -d rendiff -c \
      "SELECT COUNT(*) FROM jobs;"
    
    # Run application tests
@@ -489,8 +489,8 @@ pg_basebackup -h localhost -D /recovery -U postgres -Fp -Xs -P
 1. **Add worker nodes:**
    ```bash
    # Deploy to new node
-   scp -r . newnode:/opt/ffmpeg-api/
-   ssh newnode "cd /opt/ffmpeg-api && docker compose up -d worker-cpu"
+   scp -r . newnode:/opt/rendiff/
+   ssh newnode "cd /opt/rendiff && docker compose up -d worker-cpu"
    ```
 
 2. **Scale services:**
@@ -520,7 +520,7 @@ pg_basebackup -h localhost -D /recovery -U postgres -Fp -Xs -P
 1. **Immediate response:**
    ```bash
    # Identify compromised key
-   docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+   docker compose exec postgres psql -U rendiff_user -d rendiff -c "
    SELECT api_key_hash, last_used_at, request_count 
    FROM api_keys 
    WHERE last_used_at > NOW() - INTERVAL '1 hour'
@@ -536,7 +536,7 @@ pg_basebackup -h localhost -D /recovery -U postgres -Fp -Xs -P
    docker compose logs api | grep <key-hash> > suspicious-activity.log
    
    # Check for data exfiltration
-   docker compose exec postgres psql -U ffmpeg_user -d ffmpeg_api -c "
+   docker compose exec postgres psql -U rendiff_user -d rendiff -c "
    SELECT COUNT(*), SUM(output_size) 
    FROM jobs 
    WHERE api_key = '<key-hash>' 

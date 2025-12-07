@@ -73,7 +73,7 @@ fi
 log "🔨 Testing API container build..."
 if docker build -f docker/api/Dockerfile.new \
     --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
-    -t ffmpeg-api:stable-test \
+    -t rendiff:stable-test \
     . >> "$LOG_FILE" 2>&1; then
     success "API container built successfully"
 else
@@ -118,7 +118,7 @@ log "🔍 Validating critical dependencies..."
 
 # Test API container dependencies
 log "Testing API container dependencies..."
-if docker run --rm ffmpeg-api:stable-test python -c "
+if docker run --rm rendiff:stable-test python -c "
 import psycopg2
 import fastapi
 import sqlalchemy
@@ -154,7 +154,7 @@ fi
 
 # Test FFmpeg installation
 log "🎬 Testing FFmpeg installation..."
-if docker run --rm ffmpeg-api:stable-test ffmpeg -version | head -1 >> "$LOG_FILE" 2>&1; then
+if docker run --rm rendiff:stable-test ffmpeg -version | head -1 >> "$LOG_FILE" 2>&1; then
     success "FFmpeg installation verified in API container"
 else
     warning "FFmpeg verification failed in API container"
@@ -174,7 +174,7 @@ if docker run -d --name api-test-container \
     -p 8001:8000 \
     -e DATABASE_URL="sqlite:///test.db" \
     -e REDIS_URL="redis://localhost:6379" \
-    ffmpeg-api:stable-test >> "$LOG_FILE" 2>&1; then
+    rendiff:stable-test >> "$LOG_FILE" 2>&1; then
     
     # Wait for startup
     sleep 10
@@ -258,7 +258,7 @@ log "📋 Detailed log: $LOG_FILE"
 
 # Cleanup test images
 log "🧹 Cleaning up test images..."
-docker rmi ffmpeg-api:stable-test ffmpeg-worker-cpu:stable-test ffmpeg-worker-gpu:stable-test 2>/dev/null || true
+docker rmi rendiff:stable-test ffmpeg-worker-cpu:stable-test ffmpeg-worker-gpu:stable-test 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}🎉 All validation tests passed!${NC}"

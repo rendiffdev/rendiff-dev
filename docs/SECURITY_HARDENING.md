@@ -2,7 +2,7 @@
 
 ## Overview
 
-This FFmpeg API has been comprehensively hardened against all known security vulnerabilities. This document outlines the security features implemented and best practices for secure deployment.
+Rendiff has been comprehensively hardened against all known security vulnerabilities. This document outlines the security features implemented and best practices for secure deployment.
 
 ## 🛡️ Security Features Implemented
 
@@ -217,7 +217,7 @@ semgrep --config=auto api/ worker/
 
 # Container scanning  
 docker scout cves
-trivy image ffmpeg-api:latest
+trivy image rendiff:latest
 ```
 
 ### **Penetration Testing Checklist**

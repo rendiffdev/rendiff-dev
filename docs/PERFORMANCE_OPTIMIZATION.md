@@ -2,7 +2,7 @@
 
 ## Overview
 
-This FFmpeg API has been optimized for high-performance production workloads with comprehensive performance improvements implemented across all layers.
+Rendiff has been optimized for high-performance production workloads with comprehensive performance improvements implemented across all layers.
 
 ## 🚀 Performance Features Implemented
 
@@ -291,7 +291,7 @@ ORDER BY idx_scan DESC;
 # GPU workloads: Limit to GPU capacity
 
 # Monitor worker memory usage
-docker stats ffmpeg-api-worker-1
+docker stats rendiff-worker-1
 
 # Adjust prefetch multiplier
 # Higher = better throughput, more memory usage

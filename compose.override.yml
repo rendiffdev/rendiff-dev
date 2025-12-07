@@ -66,7 +66,7 @@ services:
     environment:
       # Development database settings
       POSTGRES_PASSWORD: dev_password_123
-      POSTGRES_DB: ffmpeg_api_dev
+      POSTGRES_DB: rendiff_dev
       
     ports:
       # Expose postgres for local development tools
@@ -96,19 +96,19 @@ services:
   # Development Tools
   mailhog:
     image: mailhog/mailhog:v1.0.1
-    container_name: ffmpeg_dev_mailhog
+    container_name: rendiff_dev_mailhog
     ports:
       - "1025:1025"  # SMTP
       - "8025:8025"  # Web UI
     networks:
-      - ffmpeg-net
+      - rendiff-net
     profiles:
       - dev-tools
       
   # Database Admin Tool
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: ffmpeg_dev_pgadmin
+    container_name: rendiff_dev_pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@localhost
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -120,7 +120,7 @@ services:
     depends_on:
       - postgres
     networks:
-      - ffmpeg-net
+      - rendiff-net
     profiles:
       - dev-tools
 

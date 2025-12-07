@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fetch remote version
-remote_url="https://raw.githubusercontent.com/rendiffdev/ffmpeg-api/main/VERSION"
+remote_url="https://raw.githubusercontent.com/rendiffdev/rendiff-dev/main/VERSION"
 remote_version=$(curl -s "$remote_url")
 if [[ -z "$remote_version" ]]; then
     echo "Error: Unable to fetch remote version."

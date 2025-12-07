@@ -1,43 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ffmpeg-api
-  namespace: ffmpeg-api
+  name: rendiff
+  namespace: rendiff
   labels:
-    app: ffmpeg-api
+    app: rendiff
     component: api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: ffmpeg-api
+      app: rendiff
       component: api
   template:
     metadata:
       labels:
-        app: ffmpeg-api
+        app: rendiff
         component: api
     spec:
       containers:
       - name: api
-        image: ffmpeg-api:latest
+        image: rendiff:latest
         ports:
         - containerPort: 8000
         env:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: ffmpeg-api-secrets
+              name: rendiff-secrets
               key: database-url
         - name: REDIS_URL
           valueFrom:
             secretKeyRef:
-              name: ffmpeg-api-secrets
+              name: rendiff-secrets
               key: redis-url
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
-              name: ffmpeg-api-secrets
+              name: rendiff-secrets
               key: secret-key
         resources:
           requests:
@@ -69,11 +69,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ffmpeg-api-service
-  namespace: ffmpeg-api
+  name: rendiff-service
+  namespace: rendiff
 spec:
   selector:
-    app: ffmpeg-api
+    app: rendiff
     component: api
   ports:
   - port: 80

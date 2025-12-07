@@ -84,7 +84,7 @@ REDIS_URL=redis://redis:6379/0
 
 # Storage
 STORAGE_PATH=./storage
-TEMP_PATH=/tmp/ffmpeg_api
+TEMP_PATH=/tmp/rendiff
 
 # Security (Disabled for development)
 ENABLE_API_KEYS=false
