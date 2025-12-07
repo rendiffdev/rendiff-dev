@@ -81,8 +81,12 @@ class Job(Base):
     # Progress tracking
     progress = Column(Float, default=0.0)
     stage = Column(String, default="queued")
+    current_stage = Column(String, default="queued")  # Alias for compatibility
+    status_message = Column(String, nullable=True)
     fps = Column(Float, nullable=True)
     eta_seconds = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+    processing_stats = Column(JSON, nullable=True)
 
     # Quality metrics
     vmaf_score = Column(Float, nullable=True)

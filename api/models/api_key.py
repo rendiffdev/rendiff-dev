@@ -47,12 +47,12 @@ class APIKey(Base):
     created_by = Column(String(255), nullable=True)
     
     @classmethod
-    def generate_key(cls) -> tuple[str, str]:
+    def generate_key(cls) -> tuple[str, str, str]:
         """
         Generate a new API key.
-        
+
         Returns:
-            tuple: (raw_key, key_hash) where raw_key should be shown to user only once
+            tuple: (raw_key, key_hash, key_prefix) where raw_key should be shown to user only once
         """
         # Generate 32 random bytes (256 bits)
         raw_key = secrets.token_urlsafe(32)
