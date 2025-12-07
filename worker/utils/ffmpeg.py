@@ -124,8 +124,18 @@ class FFmpegCommandBuilder:
     
     # Security whitelists for command injection prevention
     ALLOWED_CODECS = {
-        'video': {'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1', 'libx264', 'libx265', 'copy'},
-        'audio': {'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'libfdk_aac', 'copy'}
+        'video': {
+            'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1',
+            'libx264', 'libx265', 'libvpx', 'libvpx-vp9', 'libaom-av1', 'libsvtav1',
+            'prores', 'prores_ks', 'dnxhd', 'dnxhr',
+            'copy'
+        },
+        'audio': {
+            'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'eac3',
+            'libfdk_aac', 'libopus', 'libvorbis', 'libmp3lame',
+            'flac', 'pcm_s16le', 'pcm_s24le', 'pcm_s32le', 'pcm_f32le',
+            'copy'
+        }
     }
     
     ALLOWED_FILTERS = {
@@ -157,7 +167,18 @@ class FFmpegCommandBuilder:
     }
     
     ALLOWED_PIXEL_FORMATS = {
-        'yuv420p', 'yuv422p', 'yuv444p', 'rgb24', 'rgba', 'bgr24', 'bgra'
+        'yuv420p', 'yuv422p', 'yuv444p', 'yuv420p10le', 'yuv422p10le', 'yuv444p10le',
+        'rgb24', 'rgba', 'bgr24', 'bgra', 'nv12', 'p010le'
+    }
+
+    ALLOWED_TUNES = {
+        'film', 'animation', 'grain', 'stillimage', 'fastdecode', 'zerolatency',
+        'psnr', 'ssim'
+    }
+
+    ALLOWED_LEVELS = {
+        '1', '1.1', '1.2', '1.3', '2', '2.1', '2.2', '3', '3.1', '3.2',
+        '4', '4.1', '4.2', '5', '5.1', '5.2', '6', '6.1', '6.2'
     }
     
     # Safe parameter ranges
@@ -230,7 +251,18 @@ class FFmpegCommandBuilder:
             elif op_type == 'audio':
                 audio_filters.extend(self._handle_audio(params))
             elif op_type == 'subtitle':
-                video_filters.append(self._handle_subtitle(params))
+                sf = self._handle_subtitle(params)
+                if sf:  # Only add if not empty
+                    video_filters.append(sf)
+            elif op_type == 'thumbnail':
+                # Thumbnail operation returns full command parts, not filters
+                thumb_cmd = self._handle_thumbnail(params)
+                cmd.extend(thumb_cmd)
+            elif op_type == 'concat':
+                # Concat requires special handling - modify the command structure
+                concat_parts = self._handle_concat(params, input_path)
+                # Concat modifies the entire command, return early
+                return concat_parts
         
         # Add video filters
         if video_filters:
@@ -523,13 +555,20 @@ class FFmpegCommandBuilder:
         hw_pref = params.get('hardware_acceleration', 'auto')
 
         # Video codec
-        if 'video_codec' in params:
-            codec = params['video_codec']
-            if hw_pref == 'none' or codec == 'copy':
+        video_codec = params.get('video_codec')
+        if video_codec:
+            if hw_pref == 'none' or video_codec == 'copy':
                 # Use software encoder or copy
-                encoder = 'copy' if codec == 'copy' else f"lib{codec}" if codec in ('x264', 'x265') else codec
+                if video_codec == 'copy':
+                    encoder = 'copy'
+                elif video_codec in ('x264', 'x265'):
+                    encoder = f"lib{video_codec}"
+                elif video_codec == 'av1' and params.get('encoder') == 'svt':
+                    encoder = 'libsvtav1'
+                else:
+                    encoder = video_codec
             else:
-                encoder = HardwareAcceleration.get_best_encoder(codec, self.hardware_caps)
+                encoder = HardwareAcceleration.get_best_encoder(video_codec, self.hardware_caps)
             cmd_parts.extend(['-c:v', encoder])
 
         # Audio codec
@@ -562,9 +601,21 @@ class FFmpegCommandBuilder:
         if 'preset' in params:
             cmd_parts.extend(['-preset', params['preset']])
 
+        # Tune (for x264/x265)
+        if 'tune' in params:
+            tune = params['tune']
+            if tune in self.ALLOWED_TUNES:
+                cmd_parts.extend(['-tune', tune])
+
         # Profile (H.264/H.265)
         if 'profile' in params:
             cmd_parts.extend(['-profile:v', params['profile']])
+
+        # Level (H.264/H.265)
+        if 'level' in params:
+            level = str(params['level'])
+            if level in self.ALLOWED_LEVELS:
+                cmd_parts.extend(['-level', level])
 
         # Pixel format
         if 'pixel_format' in params:
@@ -578,6 +629,18 @@ class FFmpegCommandBuilder:
         if 'b_frames' in params:
             cmd_parts.extend(['-bf', str(params['b_frames'])])
 
+        # Reference frames
+        if 'ref_frames' in params:
+            cmd_parts.extend(['-refs', str(params['ref_frames'])])
+
+        # Lookahead (for rate control)
+        if 'rc_lookahead' in params:
+            cmd_parts.extend(['-rc-lookahead', str(params['rc_lookahead'])])
+
+        # Scene change detection threshold
+        if 'sc_threshold' in params:
+            cmd_parts.extend(['-sc_threshold', str(params['sc_threshold'])])
+
         # Audio sample rate
         if 'audio_sample_rate' in params:
             cmd_parts.extend(['-ar', str(params['audio_sample_rate'])])
@@ -586,8 +649,11 @@ class FFmpegCommandBuilder:
         if 'audio_channels' in params:
             cmd_parts.extend(['-ac', str(params['audio_channels'])])
 
-        # Faststart for web streaming (move moov atom to beginning)
-        if params.get('faststart', True):
+        # Faststart for web streaming (only valid for MP4/MOV containers)
+        # Check output format or default to enabled for MP4-compatible outputs
+        output_format = params.get('format', '').lower()
+        faststart = params.get('faststart', True)
+        if faststart and output_format not in ('webm', 'mkv', 'avi', 'ts', 'flv'):
             cmd_parts.extend(['-movflags', '+faststart'])
 
         return cmd_parts
@@ -612,19 +678,52 @@ class FFmpegCommandBuilder:
         return cmd_parts
     
     def _handle_watermark(self, params: Dict[str, Any]) -> str:
-        """Handle watermark overlay."""
-        overlay_filter = "overlay="
-        
-        # Position
-        x = params.get('x', '10')
-        y = params.get('y', '10')
-        overlay_filter += f"{x}:{y}"
-        
-        # Opacity
+        """Handle watermark overlay.
+
+        Note: Watermark requires the image to be added as a second input to FFmpeg.
+        This filter assumes input [1] is the watermark image.
+        """
+        # Get position - support both named positions and x/y coordinates
+        position = params.get('position', 'bottom-right')
+        x = params.get('x')
+        y = params.get('y')
+
+        # Handle named positions
+        if x is None or y is None:
+            position_map = {
+                'top-left': ('10', '10'),
+                'top-right': ('W-w-10', '10'),
+                'bottom-left': ('10', 'H-h-10'),
+                'bottom-right': ('W-w-10', 'H-h-10'),
+                'center': ('(W-w)/2', '(H-h)/2'),
+            }
+            x, y = position_map.get(position, ('W-w-10', 'H-h-10'))
+
+        # Build overlay filter
+        overlay_filter = f"overlay={x}:{y}"
+
+        # Opacity handling - scale the watermark's alpha channel
         if 'opacity' in params:
             alpha = params['opacity']
-            overlay_filter = f"format=rgba,colorchannelmixer=aa={alpha}[watermark];[0:v][watermark]{overlay_filter}"
-        
+            if isinstance(alpha, (int, float)) and 0 <= alpha <= 1:
+                # Apply alpha to the watermark (input [1])
+                overlay_filter = f"[1:v]format=rgba,colorchannelmixer=aa={alpha}[wm];[0:v][wm]{overlay_filter}"
+            else:
+                overlay_filter = f"[0:v][1:v]{overlay_filter}"
+        else:
+            overlay_filter = f"[0:v][1:v]{overlay_filter}"
+
+        # Scale watermark if needed
+        scale = params.get('scale')
+        if scale and isinstance(scale, (int, float)):
+            # Scale relative to main video width
+            scale_filter = f"[1:v]scale=iw*{scale}:-1[wm_scaled]"
+            if 'opacity' in params:
+                alpha = params['opacity']
+                overlay_filter = f"[1:v]scale=iw*{scale}:-1,format=rgba,colorchannelmixer=aa={alpha}[wm];[0:v][wm]{overlay_filter.split('[wm];')[-1] if '[wm];' in overlay_filter else f'overlay={x}:{y}'}"
+            else:
+                overlay_filter = f"[1:v]scale=iw*{scale}:-1[wm];[0:v][wm]overlay={x}:{y}"
+
         return overlay_filter
     
     def _handle_filters(self, params: Dict[str, Any]) -> Tuple[List[str], List[str]]:
@@ -685,7 +784,8 @@ class FFmpegCommandBuilder:
         if params.get('speed'):
             speed = params['speed']
             video_filters.append(f"setpts={1/speed}*PTS")
-            audio_filters.append(f"atempo={speed}")
+            # atempo only supports 0.5-2.0 range, chain filters for values outside
+            audio_filters.extend(self._build_atempo_chain(speed))
 
         # Named filter support (direct filter specification)
         if 'name' in params:
@@ -756,6 +856,34 @@ class FFmpegCommandBuilder:
         else:
             return "hflip"
 
+    def _build_atempo_chain(self, speed: float) -> List[str]:
+        """Build atempo filter chain for speeds outside 0.5-2.0 range.
+
+        FFmpeg's atempo filter only supports 0.5 to 2.0 range.
+        For values outside this range, we chain multiple atempo filters.
+        """
+        filters = []
+
+        if speed <= 0:
+            return filters
+
+        remaining = speed
+        # Handle speeds > 2.0 by chaining 2.0x filters
+        while remaining > 2.0:
+            filters.append("atempo=2.0")
+            remaining /= 2.0
+
+        # Handle speeds < 0.5 by chaining 0.5x filters
+        while remaining < 0.5:
+            filters.append("atempo=0.5")
+            remaining /= 0.5
+
+        # Add the final atempo for the remaining value (now in 0.5-2.0 range)
+        if 0.5 <= remaining <= 2.0:
+            filters.append(f"atempo={remaining:.4f}")
+
+        return filters
+
     def _handle_audio(self, params: Dict[str, Any]) -> List[str]:
         """Handle audio processing operations."""
         filters = []
@@ -808,6 +936,111 @@ class FFmpegCommandBuilder:
             return f"ass={subtitle_path}"
         else:
             return f"subtitles={subtitle_path}"
+
+    def _handle_thumbnail(self, params: Dict[str, Any]) -> List[str]:
+        """Handle thumbnail extraction operation.
+
+        Supports various thumbnail modes:
+        - Single frame at specific time
+        - Multiple frames at intervals
+        - Best frame selection using thumbnail filter
+        """
+        cmd_parts = []
+
+        mode = params.get('mode', 'single')
+        time = params.get('time', 0)
+        count = params.get('count', 1)
+        interval = params.get('interval', 1)
+        width = params.get('width')
+        height = params.get('height')
+        quality = params.get('quality', 2)  # 2-31, lower is better
+
+        if mode == 'single':
+            # Extract single frame at specific time
+            cmd_parts.extend(['-ss', str(time)])
+            cmd_parts.extend(['-frames:v', '1'])
+
+        elif mode == 'multiple':
+            # Extract multiple frames at intervals
+            fps_value = 1 / interval if interval > 0 else 1
+            cmd_parts.extend(['-vf', f"fps={fps_value}"])
+            if count > 0:
+                cmd_parts.extend(['-frames:v', str(count)])
+
+        elif mode == 'best':
+            # Use thumbnail filter to select best frames
+            cmd_parts.extend(['-vf', f"thumbnail=n={params.get('sample_frames', 100)}"])
+            cmd_parts.extend(['-frames:v', str(count)])
+
+        elif mode == 'sprite':
+            # Create thumbnail sprite/contact sheet
+            cols = params.get('cols', 5)
+            rows = params.get('rows', 5)
+            tile_width = params.get('tile_width', 160)
+            tile_height = params.get('tile_height', 90)
+            cmd_parts.extend(['-vf', f"fps=1/{interval},scale={tile_width}:{tile_height},tile={cols}x{rows}"])
+
+        # Apply scaling if specified
+        if width and height:
+            # Check if we already have a -vf flag
+            if '-vf' in cmd_parts:
+                vf_idx = cmd_parts.index('-vf')
+                cmd_parts[vf_idx + 1] = f"scale={width}:{height}," + cmd_parts[vf_idx + 1]
+            else:
+                cmd_parts.extend(['-vf', f"scale={width}:{height}"])
+
+        # Set quality for JPEG output
+        cmd_parts.extend(['-q:v', str(quality)])
+
+        return cmd_parts
+
+    def _handle_concat(self, params: Dict[str, Any], primary_input: str) -> List[str]:
+        """Handle video concatenation operation.
+
+        Supports two modes:
+        - demuxer: Uses concat demuxer (same codec, faster)
+        - filter: Uses concat filter (different codecs, more flexible)
+        """
+        inputs = params.get('inputs', [])
+        mode = params.get('mode', 'demuxer')
+
+        cmd = ['ffmpeg', '-y']
+
+        if mode == 'demuxer':
+            # Concat demuxer mode - requires same codec/resolution
+            # Create concat list file content (handled by caller)
+            cmd.extend(['-f', 'concat', '-safe', '0'])
+            # The input will be a concat list file
+            cmd.extend(['-i', params.get('concat_list_file', primary_input)])
+
+            # Copy streams
+            cmd.extend(['-c', 'copy'])
+
+        elif mode == 'filter':
+            # Concat filter mode - more flexible but re-encodes
+            # Add all inputs
+            cmd.extend(['-i', primary_input])
+            for inp in inputs:
+                self._validate_paths(inp, inp)
+                cmd.extend(['-i', inp])
+
+            # Build filter complex
+            n_inputs = len(inputs) + 1
+            filter_parts = []
+            for i in range(n_inputs):
+                filter_parts.append(f"[{i}:v][{i}:a]")
+
+            filter_complex = f"{''.join(filter_parts)}concat=n={n_inputs}:v=1:a=1[outv][outa]"
+            cmd.extend(['-filter_complex', filter_complex])
+            cmd.extend(['-map', '[outv]', '-map', '[outa]'])
+
+            # Add encoding options if specified
+            if 'video_codec' in params:
+                cmd.extend(['-c:v', params['video_codec']])
+            if 'audio_codec' in params:
+                cmd.extend(['-c:a', params['audio_codec']])
+
+        return cmd
     
     def _handle_stream_map(self, params: Dict[str, Any]) -> List[str]:
         """Handle stream mapping."""
@@ -955,16 +1188,143 @@ class FFmpegProgressParser:
 
 class FFmpegWrapper:
     """Main FFmpeg wrapper class."""
-    
+
     def __init__(self):
         self.hardware_caps = {}
         self.command_builder = None
-    
+
     async def initialize(self):
         """Initialize hardware capabilities and command builder."""
         self.hardware_caps = await HardwareAcceleration.detect_capabilities()
         self.command_builder = FFmpegCommandBuilder(self.hardware_caps)
         logger.info("FFmpeg wrapper initialized", hardware_caps=self.hardware_caps)
+
+    async def execute_two_pass(self, input_path: str, output_path: str,
+                               options: Dict[str, Any], operations: List[Dict[str, Any]],
+                               progress_callback: Optional[Callable] = None,
+                               timeout: Optional[int] = None) -> Dict[str, Any]:
+        """Execute two-pass encoding for optimal bitrate distribution."""
+        if not self.command_builder:
+            await self.initialize()
+
+        # Get input file info
+        probe_info = await self.probe_file(input_path)
+        duration = None
+        if 'format' in probe_info and 'duration' in probe_info['format']:
+            duration = float(probe_info['format']['duration'])
+
+        # Create temp file for pass log
+        pass_log_prefix = tempfile.mktemp(prefix='ffmpeg_2pass_')
+
+        try:
+            # Pass 1 - Analysis pass
+            pass1_operations = []
+            for op in operations:
+                if op.get('type') == 'transcode':
+                    pass1_op = op.copy()
+                    pass1_op['_pass'] = 1
+                    pass1_operations.append(pass1_op)
+                else:
+                    pass1_operations.append(op)
+
+            pass1_cmd = self.command_builder.build_command(
+                input_path, os.devnull, options, pass1_operations
+            )
+            # Add pass 1 specific flags
+            pass1_cmd = [c for c in pass1_cmd if c != os.devnull]
+            pass1_cmd.extend(['-pass', '1', '-passlogfile', pass_log_prefix, '-f', 'null', os.devnull])
+
+            logger.info("Starting pass 1", command=' '.join(pass1_cmd))
+
+            process = await asyncio.create_subprocess_exec(
+                *pass1_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            pass1_timeout = timeout // 2 if timeout else None
+            if pass1_timeout:
+                await asyncio.wait_for(process.wait(), timeout=pass1_timeout)
+            else:
+                await process.wait()
+
+            if process.returncode != 0:
+                stderr = await process.stderr.read() if process.stderr else b''
+                raise FFmpegExecutionError(f"Pass 1 failed: {stderr.decode()[-500:]}")
+
+            # Pass 2 - Encoding pass
+            pass2_operations = []
+            for op in operations:
+                if op.get('type') == 'transcode':
+                    pass2_op = op.copy()
+                    pass2_op['_pass'] = 2
+                    pass2_operations.append(pass2_op)
+                else:
+                    pass2_operations.append(op)
+
+            pass2_cmd = self.command_builder.build_command(
+                input_path, output_path, options, pass2_operations
+            )
+            # Insert pass 2 specific flags before output
+            output_idx = pass2_cmd.index(output_path)
+            pass2_cmd = pass2_cmd[:output_idx] + ['-pass', '2', '-passlogfile', pass_log_prefix] + pass2_cmd[output_idx:]
+
+            logger.info("Starting pass 2", command=' '.join(pass2_cmd))
+
+            progress_parser = FFmpegProgressParser(duration)
+            last_progress = {}
+
+            process = await asyncio.create_subprocess_exec(
+                *pass2_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            stderr_lines = []
+            async def read_stderr():
+                if process.stderr:
+                    async for line in process.stderr:
+                        line_str = line.decode('utf-8', errors='ignore').strip()
+                        stderr_lines.append(line_str)
+                        progress = progress_parser.parse_progress(line_str)
+                        if progress and progress_callback:
+                            # Adjust progress for pass 2 (50-100%)
+                            if 'percentage' in progress:
+                                progress['percentage'] = 50 + progress['percentage'] / 2
+                            last_progress.update(progress)
+                            await progress_callback(progress)
+
+            stderr_task = asyncio.create_task(read_stderr())
+
+            pass2_timeout = timeout // 2 if timeout else None
+            if pass2_timeout:
+                await asyncio.wait_for(process.wait(), timeout=pass2_timeout)
+            else:
+                await process.wait()
+
+            await stderr_task
+
+            if process.returncode != 0:
+                error_msg = '\n'.join(stderr_lines[-10:])
+                raise FFmpegExecutionError(f"Pass 2 failed with code {process.returncode}: {error_msg}")
+
+            output_info = await self.probe_file(output_path)
+
+            return {
+                'success': True,
+                'output_info': output_info,
+                'processing_stats': last_progress,
+                'encoding_passes': 2
+            }
+
+        finally:
+            # Clean up pass log files
+            import glob
+            for f in glob.glob(f"{pass_log_prefix}*"):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
     
     async def probe_file(self, file_path: str) -> Dict[str, Any]:
         """Probe media file for information."""
