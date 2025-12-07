@@ -98,7 +98,7 @@ jobs:
         context: .
         file: ${{ matrix.dockerfile }}
         build-args: ${{ matrix.build_args }}
-        tags: ffmpeg-${{ matrix.component }}:test
+        tags: rendiff-${{ matrix.component }}:test
         load: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -108,14 +108,14 @@ jobs:
         echo "Testing critical dependencies in ${{ matrix.component }}..."
         
         # Test psycopg2-binary (the main fix)
-        docker run --rm ffmpeg-${{ matrix.component }}:test python -c "
+        docker run --rm rendiff-${{ matrix.component }}:test python -c "
         import psycopg2
         print(f'✅ psycopg2-binary: {psycopg2.__version__}')
         "
         
         # Test other critical dependencies
         if [ "${{ matrix.component }}" = "api" ]; then
-          docker run --rm ffmpeg-${{ matrix.component }}:test python -c "
+          docker run --rm rendiff-${{ matrix.component }}:test python -c "
           import fastapi, sqlalchemy, asyncpg
           print(f'✅ FastAPI: {fastapi.__version__}')
           print(f'✅ SQLAlchemy: {sqlalchemy.__version__}')
@@ -124,7 +124,7 @@ jobs:
         fi
         
         if [[ "${{ matrix.component }}" == worker* ]]; then
-          docker run --rm ffmpeg-${{ matrix.component }}:test python -c "
+          docker run --rm rendiff-${{ matrix.component }}:test python -c "
           import celery, redis
           print(f'✅ Celery: {celery.__version__}')
           print(f'✅ Redis: {redis.__version__}')
@@ -151,7 +151,7 @@ jobs:
         context: .
         file: docker/api/Dockerfile.new
         build-args: "PYTHON_VERSION=${{ env.PYTHON_VERSION }}"
-        tags: ffmpeg-api:ffmpeg-test
+        tags: rendiff-api:ffmpeg-test
         load: true
     
     - name: Test FFmpeg functionality
@@ -159,10 +159,10 @@ jobs:
         echo "Testing FFmpeg installation and basic functionality..."
         
         # Test FFmpeg version
-        docker run --rm ffmpeg-api:ffmpeg-test ffmpeg -version | head -1
+        docker run --rm rendiff-api:ffmpeg-test ffmpeg -version | head -1
         
         # Test FFmpeg basic functionality with a simple command
-        docker run --rm ffmpeg-api:ffmpeg-test ffmpeg -f lavfi -i testsrc=duration=1:size=320x240:rate=1 -t 1 test.mp4
+        docker run --rm rendiff-api:ffmpeg-test ffmpeg -f lavfi -i testsrc=duration=1:size=320x240:rate=1 -t 1 test.mp4
         
         echo "✅ FFmpeg installation and basic functionality verified"
 
@@ -221,13 +221,13 @@ jobs:
         context: .
         file: docker/api/Dockerfile.new
         build-args: "PYTHON_VERSION=${{ env.PYTHON_VERSION }}"
-        tags: ffmpeg-api:security-scan
+        tags: rendiff-api:security-scan
         load: true
     
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: 'ffmpeg-api:security-scan'
+        image-ref: 'rendiff-api:security-scan'
         format: 'sarif'
         output: 'trivy-results.sarif'
     

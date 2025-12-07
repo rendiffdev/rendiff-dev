@@ -1,5 +1,6 @@
--- FFmpeg API Schema Creation
+-- Rendiff Schema Creation
 -- This script creates the application schema using Alembic migration logic
+-- Note: Rendiff is powered by FFmpeg for media processing
 
 -- Enable UUID extension for GUID type
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -213,12 +214,12 @@ GROUP BY DATE_TRUNC('hour', created_at), status
 ORDER BY hour DESC, status;
 
 -- Grant necessary permissions
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ffmpeg_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ffmpeg_user;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO ffmpeg_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rendiff_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rendiff_user;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO rendiff_user;
 
 -- Log successful schema creation
 DO $$
 BEGIN
-    RAISE NOTICE 'FFmpeg API Schema created successfully at %', NOW();
+    RAISE NOTICE 'Rendiff Schema created successfully at %', NOW();
 END $$;

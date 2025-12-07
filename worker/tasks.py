@@ -6,11 +6,13 @@ import json
 import os
 import tempfile
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Import removed - using internal FFmpeg wrapper instead
 import structlog
+import yaml
 from celery import Task, current_task
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -23,6 +25,17 @@ from worker.processors.analysis import AnalysisProcessor
 from worker.utils.progress import ProgressTracker
 
 logger = structlog.get_logger()
+
+
+@lru_cache(maxsize=1)
+def get_storage_config() -> Dict[str, Any]:
+    """Load and cache storage configuration.
+
+    Reads the YAML config file once and caches it to avoid
+    synchronous I/O in async contexts.
+    """
+    with open(settings.STORAGE_CONFIG, 'r') as f:
+        return yaml.safe_load(f)
 
 # Database setup for worker
 # Configure engine based on database type
@@ -166,13 +179,13 @@ def process_job(job_id: str) -> Dict[str, Any]:
                 error_msg = "Processing timeout"
             else:
                 error_msg = "Processing failed"
-            
-            send_webhook(job.webhook_url, "error", {
+
+            asyncio.run(send_webhook(job.webhook_url, "error", {
                 "job_id": str(job.id),
                 "status": "failed",
                 "error": error_msg,  # Sanitized error
-            })
-        
+            }))
+
         raise
     finally:
         db.close()
@@ -184,12 +197,10 @@ async def process_job_async(job: Job, progress: ProgressTracker) -> Dict[str, An
     """
     import contextlib
     import shutil
-    
-    # Load storage configuration
-    with open(settings.STORAGE_CONFIG, 'r') as f:
-        import yaml
-        storage_config = yaml.safe_load(f)
-    
+
+    # Load storage configuration (cached)
+    storage_config = get_storage_config()
+
     # Parse input/output paths
     input_backend_name, input_path = parse_storage_path(job.input_path)
     output_backend_name, output_path = parse_storage_path(job.output_path)
@@ -334,15 +345,16 @@ def create_streaming(job_id: str) -> Dict[str, Any]:
         job.processing_time = (job.completed_at - job.started_at).total_seconds()
         
         db.commit()
-        
+
         # Send webhook
-        send_webhook(job.webhook_url, "complete", {
-            "job_id": str(job.id),
-            "status": "completed",
-            "output_path": job.output_path,
-            "streaming_info": result.get("streaming_info", {}),
-        })
-        
+        if job.webhook_url:
+            asyncio.run(send_webhook(job.webhook_url, "complete", {
+                "job_id": str(job.id),
+                "status": "completed",
+                "output_path": job.output_path,
+                "streaming_info": result.get("streaming_info", {}),
+            }))
+
         logger.info(f"Streaming job completed: {job_id}")
         return result
         
@@ -366,13 +378,13 @@ def create_streaming(job_id: str) -> Dict[str, Any]:
                 error_msg = "Processing timeout"
             else:
                 error_msg = "Processing failed"
-            
-            send_webhook(job.webhook_url, "error", {
+
+            asyncio.run(send_webhook(job.webhook_url, "error", {
                 "job_id": str(job.id),
                 "status": "failed",
                 "error": error_msg,  # Sanitized error
-            })
-        
+            }))
+
         raise
     finally:
         db.close()
@@ -383,12 +395,10 @@ async def process_streaming_async(job: Job, progress: ProgressTracker) -> Dict[s
     Async streaming processing logic.
     """
     from worker.processors.streaming import StreamingProcessor
-    
-    # Load storage configuration
-    with open(settings.STORAGE_CONFIG, 'r') as f:
-        import yaml
-        storage_config = yaml.safe_load(f)
-    
+
+    # Load storage configuration (cached)
+    storage_config = get_storage_config()
+
     # Parse input/output paths
     input_backend_name, input_path = parse_storage_path(job.input_path)
     output_backend_name, output_path = parse_storage_path(job.output_path)

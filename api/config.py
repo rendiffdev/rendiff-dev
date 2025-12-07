@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024 * 1024  # 10GB
     MAX_JOB_DURATION: int = 21600  # 6 hours
     MAX_CONCURRENT_JOBS_PER_KEY: int = 10
+    MAX_OPERATIONS_PER_JOB: int = 50  # Maximum operations per conversion job
     JOB_RETENTION_DAYS: int = 7
     
     # Webhooks

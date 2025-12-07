@@ -80,12 +80,12 @@ FROM python:${PYTHON_VERSION}-slim AS runtime
 # Runtime labels
 LABEL stage=runtime
 LABEL python.version=${PYTHON_VERSION}
-LABEL app.name="ffmpeg-api"
+LABEL app.name="rendiff"
 LABEL app.component="api"
 LABEL maintainer="rendiff-team"
 LABEL version="1.0.0"
-LABEL description="FFmpeg API Service"
-LABEL org.opencontainers.image.source="https://github.com/rendiffdev/ffmpeg-api"
+LABEL description="Rendiff Media Processing API (Powered by FFmpeg)"
+LABEL org.opencontainers.image.source="https://github.com/rendiffdev/rendiff-dev"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

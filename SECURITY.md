@@ -2,7 +2,9 @@
 
 ## Overview
 
-This guide provides comprehensive security configuration instructions for the FFmpeg API service to ensure production-grade security.
+This guide provides comprehensive security configuration instructions for Rendiff to ensure production-grade security.
+
+> **Note:** Rendiff is a REST API layer powered by FFmpeg. All media processing is handled by FFmpeg under the hood.
 
 ## 1. Environment Variables
 

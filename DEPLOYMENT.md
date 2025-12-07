@@ -1,10 +1,12 @@
 # Production Deployment Guide
 
-Complete guide for deploying the FFmpeg API to production environments.
+Complete guide for deploying Rendiff to production environments.
 
 ## 📊 Executive Summary
 
-The Rendiff FFmpeg API is a **production-ready**, **fully containerized** video processing service with **zero manual configuration** required. It provides enterprise-grade video/audio processing capabilities with optional AI-enhanced features.
+**Rendiff** is a **production-ready**, **fully containerized** media processing API **powered by FFmpeg**. It provides enterprise-grade video/audio processing capabilities with optional AI-enhanced features.
+
+> **Powered by FFmpeg:** All media processing operations are handled by FFmpeg under the hood. Rendiff provides a clean REST API layer on top of FFmpeg's powerful capabilities.
 
 ### 🎯 Key Features
 
@@ -33,8 +35,8 @@ The Rendiff FFmpeg API is a **production-ready**, **fully containerized** video 
 ### Standard Deployment (Recommended)
 ```bash
 # Clone and deploy - no setup required!
-git clone https://github.com/rendiffdev/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/rendiffdev/rendiff-dev.git
+cd rendiff-dev
 docker compose up -d
 
 # That's it! The API is now running at http://localhost:8080
@@ -42,8 +44,8 @@ docker compose up -d
 
 ### AI-Enhanced Deployment (GPU Required)
 ```bash
-git clone https://github.com/rendiffdev/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/rendiffdev/rendiff-dev.git
+cd rendiff-dev
 docker compose -f docker compose.yml -f docker compose.genai.yml up -d
 ```
 

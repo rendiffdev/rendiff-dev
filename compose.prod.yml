@@ -1,8 +1,8 @@
-# Docker Compose format version is no longer required in Compose v2+
-# Production-Ready FFmpeg API Deployment
+# Rendiff - Production-Grade Media Processing API (Powered by FFmpeg)
+# Production Deployment Configuration
 # This configuration includes health checks, resource limits, and production settings
 
-name: ffmpeg-api-prod
+name: rendiff-prod
 
 services:
   # API Service
@@ -64,7 +64,7 @@ services:
           memory: 512M
           cpus: '0.5'
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
     labels:
       # Enable Traefik for this service
       - "traefik.enable=true"
@@ -116,7 +116,7 @@ services:
           memory: 1G
           cpus: '1.0'
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
 
   # GPU Workers (optional)
   worker-gpu:
@@ -160,7 +160,7 @@ services:
     profiles:
       - gpu
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
 
   # Redis for task queue
   redis:
@@ -186,7 +186,7 @@ services:
           memory: 256M
           cpus: '0.25'
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
 
   # PostgreSQL (for production - optional)
   postgres:
@@ -217,7 +217,7 @@ services:
     profiles:
       - postgres
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
 
   # Prometheus for metrics
   prometheus:
@@ -252,7 +252,7 @@ services:
     profiles:
       - monitoring
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
     labels:
       # Enable Traefik for this service
       - "traefik.enable=true"
@@ -296,7 +296,7 @@ services:
     profiles:
       - monitoring
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
     labels:
       # Enable Traefik for this service
       - "traefik.enable=true"
@@ -347,7 +347,7 @@ services:
           cpus: '0.1'
     # No profile - Traefik runs by default for HTTPS
     networks:
-      - ffmpeg-api-network
+      - rendiff-network
     labels:
       # Enable Traefik for the dashboard
       - "traefik.enable=true"
@@ -371,10 +371,10 @@ volumes:
     driver: local
 
 networks:
-  ffmpeg-api-network:
+  rendiff-network:
     driver: bridge
     driver_opts:
-      com.docker.network.bridge.name: br-ffmpeg-api
+      com.docker.network.bridge.name: br-rendiff
     ipam:
       driver: default
       config:

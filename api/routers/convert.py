@@ -37,19 +37,49 @@ async def convert_media(
     """
     try:
         # Validate request size and complexity early
-        if len(request.operations) > 20:
-            raise HTTPException(status_code=400, detail="Too many operations (max 20)")
+        if len(request.operations) > settings.MAX_OPERATIONS_PER_JOB:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Too many operations (max {settings.MAX_OPERATIONS_PER_JOB})"
+            )
         
         # Check webhook URL for SSRF if provided
         if request.webhook_url:
             from urllib.parse import urlparse
+            import ipaddress
             parsed = urlparse(request.webhook_url)
-            # Block internal networks
-            if parsed.hostname in ['localhost', '127.0.0.1', '0.0.0.0'] or \
-               parsed.hostname and (parsed.hostname.startswith('192.168.') or 
-                                   parsed.hostname.startswith('10.') or 
-                                   parsed.hostname.startswith('172.')):
-                raise HTTPException(status_code=400, detail="Invalid webhook URL")
+
+            # Block internal/private networks using proper CIDR checking
+            hostname = parsed.hostname
+            if hostname:
+                # Block localhost variants
+                if hostname in ['localhost', '127.0.0.1', '0.0.0.0', '::1']:
+                    raise HTTPException(status_code=400, detail="Invalid webhook URL: localhost not allowed")
+
+                # Try to parse as IP address for CIDR checking
+                try:
+                    ip = ipaddress.ip_address(hostname)
+                    # Define private/reserved networks
+                    private_networks = [
+                        ipaddress.ip_network('10.0.0.0/8'),        # Class A private
+                        ipaddress.ip_network('172.16.0.0/12'),     # Class B private (172.16-31.x.x)
+                        ipaddress.ip_network('192.168.0.0/16'),    # Class C private
+                        ipaddress.ip_network('127.0.0.0/8'),       # Loopback
+                        ipaddress.ip_network('169.254.0.0/16'),    # Link-local
+                        ipaddress.ip_network('100.64.0.0/10'),     # Carrier-grade NAT
+                        ipaddress.ip_network('::1/128'),           # IPv6 loopback
+                        ipaddress.ip_network('fc00::/7'),          # IPv6 unique local
+                        ipaddress.ip_network('fe80::/10'),         # IPv6 link-local
+                    ]
+                    for network in private_networks:
+                        if ip in network:
+                            raise HTTPException(status_code=400, detail="Invalid webhook URL: private network not allowed")
+                except ValueError:
+                    # Not an IP address, hostname - could still resolve to private IP
+                    # For safety, block common internal hostnames
+                    lower_hostname = hostname.lower()
+                    if lower_hostname.endswith('.local') or lower_hostname.endswith('.internal'):
+                        raise HTTPException(status_code=400, detail="Invalid webhook URL: internal hostname not allowed")
         # Parse input/output paths
         input_path = request.input if isinstance(request.input, str) else request.input.get("path")
         output_path = request.output if isinstance(request.output, str) else request.output.get("path")

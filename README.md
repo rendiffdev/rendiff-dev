@@ -1,23 +1,42 @@
-# FFmpeg API
+# Rendiff
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![FFmpeg 6.0+](https://img.shields.io/badge/FFmpeg-6.0%2B-green)](https://ffmpeg.org/)
-[![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](https://github.com/yourusername/ffmpeg-api)
-[![Security Hardened](https://img.shields.io/badge/Security-Hardened-red)](https://github.com/yourusername/ffmpeg-api/blob/main/SECURITY.md)
+[![Powered by FFmpeg](https://img.shields.io/badge/Powered%20by-FFmpeg-green?logo=ffmpeg)](https://ffmpeg.org/)
+[![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen)](https://github.com/rendiffdev/rendiff-dev)
+[![Security Hardened](https://img.shields.io/badge/Security-Hardened-red)](https://github.com/rendiffdev/rendiff-dev/blob/main/SECURITY.md)
 
-**Enterprise-grade FFmpeg API** for professional video processing workflows. Replace complex CLI operations with a modern REST API featuring hardware acceleration, real-time progress tracking, and comprehensive security hardening.
+**Rendiff** is an enterprise-grade REST API layer built on top of [FFmpeg](https://ffmpeg.org/), the industry-standard multimedia framework. Replace complex FFmpeg CLI operations with a modern, secure, and scalable REST API featuring hardware acceleration, real-time progress tracking, and comprehensive security hardening.
+
+> **Powered by FFmpeg:** This project leverages FFmpeg for all media processing operations. FFmpeg is a complete, cross-platform solution to record, convert, and stream audio and video. Learn more at [ffmpeg.org](https://ffmpeg.org/).
 
 > **🔒 Security Note:** This API has undergone comprehensive security hardening with all 34 critical vulnerabilities resolved. Safe for production deployment.
 
+## About Rendiff
+
+Rendiff provides a production-ready API abstraction over FFmpeg, making it easy to integrate powerful media processing capabilities into your applications without dealing with FFmpeg's complex CLI interface directly.
+
+**What Rendiff Does:**
+- Exposes FFmpeg's capabilities through a clean REST API
+- Handles job queuing, progress tracking, and error handling
+- Provides enterprise security features (auth, rate limiting, input validation)
+- Supports distributed processing with multiple workers
+- Integrates with cloud storage (S3, Azure, GCP)
+
+**What FFmpeg Does (Under the Hood):**
+- All actual media encoding, decoding, and transcoding
+- Hardware acceleration (NVENC, QSV, VAAPI)
+- Format conversion and streaming generation
+- Quality analysis (VMAF, PSNR, SSIM)
+
 ## ✨ Key Features
 
-### **Core Processing**
+### **Core Processing (Powered by FFmpeg)**
 - **Complete FFmpeg Capability** - Full CLI parity with REST API convenience
-- **Hardware Acceleration** - NVENC, QSV, VAAPI, VideoToolbox support  
-- **Quality Metrics** - Built-in VMAF, PSNR, SSIM analysis
+- **Hardware Acceleration** - NVENC, QSV, VAAPI, VideoToolbox support
+- **Quality Metrics** - Built-in VMAF, PSNR, SSIM analysis via FFmpeg
 - **Async Processing** - Non-blocking operations with real-time progress
 - **Batch Operations** - Process multiple files concurrently
 - **Streaming Support** - Generate HLS/DASH adaptive streams
@@ -33,7 +52,7 @@
 
 ### **Production Reliability** 🚀
 - **Circuit Breaker Pattern** - Automatic failure protection for external services
-- **Distributed Locking** - Redis-based coordination for critical sections  
+- **Distributed Locking** - Redis-based coordination for critical sections
 - **Health Monitoring** - Comprehensive dependency health checks
 - **Connection Pooling** - Optimized database and storage connections
 - **Resource Limits** - CPU, memory, and bandwidth governance
@@ -51,8 +70,8 @@
 
 ```bash
 # Clone and deploy
-git clone https://github.com/yourusername/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/rendiffdev/rendiff-dev.git
+cd rendiff-dev
 
 # Run database migration for performance indexes
 docker compose run --rm api alembic upgrade head
@@ -72,7 +91,7 @@ For detailed setup options, see the [Setup Guide](docs/SETUP.md).
 
 ### Core Processing
 ```http
-POST   /api/v1/convert     # Media conversion
+POST   /api/v1/convert     # Media conversion (FFmpeg transcode)
 POST   /api/v1/analyze     # Quality metrics (VMAF, PSNR, SSIM)
 POST   /api/v1/stream      # HLS/DASH adaptive streaming
 POST   /api/v1/batch       # Batch processing
@@ -89,27 +108,34 @@ DELETE /api/v1/jobs/{id}   # Cancel job
 ```http
 GET    /api/v1/health      # Comprehensive health check
 GET    /api/v1/metrics     # Prometheus metrics
-GET    /api/v1/stats       # System statistics  
+GET    /api/v1/stats       # System statistics
 GET    /docs               # Interactive API documentation
 ```
 
 ## 🏗️ Architecture
 
 ```yaml
-Production Services:
+Rendiff Services:
 ├── API (FastAPI)           # REST API with security hardening
-├── Workers (Celery)        # Background processing with circuit breakers
+├── Workers (Celery)        # FFmpeg processing with circuit breakers
 ├── Queue (Redis/Valkey)    # Task queue with distributed locking
 ├── Database (PostgreSQL)   # ACID transactions with performance indexes
 ├── Storage (Multi-cloud)   # S3/Azure/GCP with connection pooling
 ├── Monitoring              # Prometheus/Grafana with comprehensive health checks
 └── Security                # Rate limiting, input validation, SSRF protection
+
+FFmpeg Integration:
+└── Workers execute FFmpeg commands for all media operations
+    ├── Transcoding (H.264, H.265, VP9, AV1)
+    ├── Hardware acceleration (NVENC, QSV, VAAPI)
+    ├── Streaming (HLS, DASH)
+    └── Quality analysis (VMAF, PSNR, SSIM)
 ```
 
 ### **Security Layers**
 ```yaml
 Defense in Depth:
-├── Network: Rate limiting, IP whitelisting  
+├── Network: Rate limiting, IP whitelisting
 ├── Authentication: API keys with timing attack protection
 ├── Input: Size limits, path traversal prevention, sanitization
 ├── Processing: Command injection prevention, resource limits
@@ -119,8 +145,10 @@ Defense in Depth:
 
 ## 📊 Format Support
 
-**Input:** MP4, AVI, MOV, MKV, WebM, FLV, MP3, WAV, FLAC, AAC, and more  
+**Input:** MP4, AVI, MOV, MKV, WebM, FLV, MP3, WAV, FLAC, AAC, and more
 **Output:** MP4, WebM, MKV, HLS, DASH with H.264, H.265, VP9, AV1 codecs
+
+> All format support is provided by FFmpeg. See [FFmpeg Formats Documentation](https://ffmpeg.org/ffmpeg-formats.html) for complete list.
 
 ## 🔧 Configuration
 
@@ -130,7 +158,7 @@ Configuration via environment variables or `.env` file:
 # Core Services
 API_HOST=0.0.0.0
 API_PORT=8000
-DATABASE_URL=postgresql://user:pass@localhost/ffmpeg_api
+DATABASE_URL=postgresql://user:pass@localhost/rendiff
 VALKEY_URL=redis://localhost:6379
 
 # Security (Production Hardened)
@@ -148,9 +176,11 @@ DATABASE_MAX_OVERFLOW=40
 CIRCUIT_BREAKER_ENABLED=true
 HEALTH_CHECK_INTERVAL=30
 
-# Hardware Acceleration
+# FFmpeg / Hardware Acceleration
 FFMPEG_HARDWARE_ACCELERATION=auto
 ENABLE_GPU_WORKERS=false
+FFMPEG_THREADS=0  # 0 = auto-detect
+FFMPEG_PRESET=medium
 ```
 
 ### **Security Configuration**
@@ -179,7 +209,7 @@ MAX_PROCESSING_TIME=3600  # 1 hour
 - [Migration Guide](docs/MIGRATION.md) - Database migrations and upgrades
 - [Security Guide](SECURITY.md) - Security policies and hardening checklist
 
-### **API & Development**  
+### **API & Development**
 - [API Reference](docs/API.md) - Complete endpoint documentation with examples
 - [Authentication Guide](docs/AUTH.md) - API key management and security
 - [Webhook Guide](docs/WEBHOOKS.md) - Webhook configuration and retry logic
@@ -187,7 +217,7 @@ MAX_PROCESSING_TIME=3600  # 1 hour
 
 ### **Operations & Monitoring**
 - [Health Monitoring](docs/HEALTH.md) - Health checks and dependency monitoring
-- [Performance Tuning](docs/PERFORMANCE.md) - Optimization and scaling guidelines  
+- [Performance Tuning](docs/PERFORMANCE.md) - Optimization and scaling guidelines
 - [Runbooks](docs/RUNBOOKS.md) - Operational procedures and troubleshooting
 - [Audit Report](CRITICAL_ISSUES_AUDIT.md) - Security vulnerability assessment (resolved)
 
@@ -216,6 +246,7 @@ MAX_PROCESSING_TIME=3600  # 1 hour
 
 ### **Dependencies**
 - **Container Runtime**: Docker 20.10+ or containerd
+- **FFmpeg**: 6.0+ (included in Docker images)
 - **Database**: PostgreSQL 14+ (recommended) or SQLite 3.38+
 - **Cache/Queue**: Redis 7.0+ or Valkey
 - **Monitoring**: Prometheus + Grafana (optional)
@@ -223,7 +254,7 @@ MAX_PROCESSING_TIME=3600  # 1 hour
 
 ## 🔒 Security & Compliance
 
-This FFmpeg API has undergone comprehensive security hardening:
+Rendiff has undergone comprehensive security hardening:
 
 ### **Security Audit Status** ✅
 - **34/34 Critical Issues Resolved** - All vulnerabilities patched
@@ -234,15 +265,40 @@ This FFmpeg API has undergone comprehensive security hardening:
 ### **Compliance Features**
 - **Input Validation** - All user inputs sanitized and validated
 - **Rate Limiting** - DDoS protection with endpoint-specific limits
-- **Access Control** - Role-based API key authentication  
+- **Access Control** - Role-based API key authentication
 - **Audit Logging** - Comprehensive security event logging
 - **Encryption** - TLS 1.3 for data in transit
 - **Secrets Management** - Environment-based configuration
 
 ### **Security Reports**
 - [Security Audit Report](CRITICAL_ISSUES_AUDIT.md) - Comprehensive vulnerability assessment
-- [Fixes Implementation Report](FIXES_COMPLETED_REPORT.md) - Resolution documentation  
+- [Fixes Implementation Report](FIXES_COMPLETED_REPORT.md) - Resolution documentation
 - [Security Policy](SECURITY.md) - Security guidelines and procedures
+
+## 🙏 Acknowledgments
+
+### FFmpeg
+
+**Rendiff is powered by [FFmpeg](https://ffmpeg.org/)**, the leading multimedia framework.
+
+> FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+
+FFmpeg is licensed under the [LGPL/GPL license](https://ffmpeg.org/legal.html). This project uses FFmpeg as an external tool and does not modify or redistribute FFmpeg source code.
+
+**FFmpeg provides:**
+- Audio and video encoding/decoding
+- Format conversion and muxing
+- Hardware acceleration support
+- Streaming protocols
+- Quality analysis tools
+
+We are grateful to the FFmpeg team and contributors for their incredible work on this essential multimedia toolkit.
+
+### Other Technologies
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [Celery](https://docs.celeryq.dev/) - Distributed task queue
+- [PostgreSQL](https://postgresql.org/) - Advanced open source database
+- [Redis](https://redis.io/) - In-memory data structure store
 
 ## 🤝 Contributing
 
@@ -251,8 +307,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### **Development Workflow**
 ```bash
 # Set up development environment
-git clone https://github.com/yourusername/ffmpeg-api.git
-cd ffmpeg-api
+git clone https://github.com/rendiffdev/rendiff-dev.git
+cd rendiff-dev
 
 # Install dependencies
 pip install -r requirements-dev.txt
@@ -269,15 +325,17 @@ safety check
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+**Note:** While Rendiff is MIT licensed, it depends on FFmpeg which is licensed under LGPL/GPL. When deploying, ensure compliance with FFmpeg's licensing terms. See [FFmpeg Legal](https://ffmpeg.org/legal.html) for details.
+
 ---
 
 ## 🏆 Production Ready
 
-**Enterprise-grade FFmpeg API with comprehensive security hardening.**
+**Enterprise-grade media processing API powered by FFmpeg.**
 
 - ✅ **34 Critical Security Issues Resolved**
 - ✅ **Zero Breaking Changes** - Fully backward compatible
-- ✅ **Production Tested** - Battle-tested architecture  
+- ✅ **Production Tested** - Battle-tested architecture
 - ✅ **Performance Optimized** - Database indexes, connection pooling, async I/O
 - ✅ **Monitoring Ready** - Health checks, metrics, alerting
 - ✅ **Scalable Design** - Horizontal scaling with load balancing
