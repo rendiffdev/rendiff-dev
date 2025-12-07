@@ -635,12 +635,15 @@ def validate_concat_operation(op: Dict[str, Any]) -> Dict[str, Any]:
 def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
     """Validate transcode operation with enhanced security checks."""
     validated = {"type": "transcode"}
-    
+
     # Allowed video codecs
-    ALLOWED_VIDEO_CODECS = {'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1', 'libx264', 'libx265', 'copy'}
-    ALLOWED_AUDIO_CODECS = {'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'libfdk_aac', 'copy'}
+    ALLOWED_VIDEO_CODECS = {'h264', 'h265', 'hevc', 'vp8', 'vp9', 'av1', 'libx264', 'libx265', 'copy', 'prores', 'dnxhd'}
+    ALLOWED_AUDIO_CODECS = {'aac', 'mp3', 'opus', 'vorbis', 'ac3', 'eac3', 'libfdk_aac', 'flac', 'pcm_s16le', 'pcm_s24le', 'copy'}
     ALLOWED_PRESETS = {'ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'}
-    
+    ALLOWED_PROFILES = {'baseline', 'main', 'high', 'high10', 'high422', 'high444'}
+    ALLOWED_PIXEL_FORMATS = {'yuv420p', 'yuv422p', 'yuv444p', 'yuv420p10le', 'yuv422p10le', 'rgb24', 'rgba'}
+    ALLOWED_HW_ACCEL = {'auto', 'none', 'nvenc', 'qsv', 'vaapi', 'videotoolbox'}
+
     # Validate video codec
     if "video_codec" in op:
         codec = op["video_codec"]
@@ -649,7 +652,7 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
         if codec not in ALLOWED_VIDEO_CODECS:
             raise ValueError(f"Invalid video codec: {codec}")
         validated["video_codec"] = codec
-    
+
     # Validate audio codec
     if "audio_codec" in op:
         codec = op["audio_codec"]
@@ -658,7 +661,7 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
         if codec not in ALLOWED_AUDIO_CODECS:
             raise ValueError(f"Invalid audio codec: {codec}")
         validated["audio_codec"] = codec
-    
+
     # Validate preset
     if "preset" in op:
         preset = op["preset"]
@@ -667,13 +670,40 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
         if preset not in ALLOWED_PRESETS:
             raise ValueError(f"Invalid preset: {preset}")
         validated["preset"] = preset
-    
+
+    # Validate profile (for H.264/H.265)
+    if "profile" in op:
+        profile = op["profile"]
+        if not isinstance(profile, str):
+            raise ValueError("Profile must be a string")
+        if profile not in ALLOWED_PROFILES:
+            raise ValueError(f"Invalid profile: {profile}")
+        validated["profile"] = profile
+
+    # Validate pixel format
+    if "pixel_format" in op or "pix_fmt" in op:
+        pix_fmt = op.get("pixel_format") or op.get("pix_fmt")
+        if pix_fmt not in ALLOWED_PIXEL_FORMATS:
+            raise ValueError(f"Invalid pixel format: {pix_fmt}")
+        validated["pixel_format"] = pix_fmt
+
+    # Validate hardware acceleration
+    if "hardware_acceleration" in op or "hw_accel" in op:
+        hw = op.get("hardware_acceleration") or op.get("hw_accel")
+        if hw not in ALLOWED_HW_ACCEL:
+            raise ValueError(f"Invalid hardware acceleration: {hw}")
+        validated["hardware_acceleration"] = hw
+
     # Validate bitrates
     if "video_bitrate" in op:
         validated["video_bitrate"] = validate_bitrate(op["video_bitrate"])
     if "audio_bitrate" in op:
         validated["audio_bitrate"] = validate_bitrate(op["audio_bitrate"])
-    
+    if "max_bitrate" in op:
+        validated["max_bitrate"] = validate_bitrate(op["max_bitrate"])
+    if "buffer_size" in op:
+        validated["buffer_size"] = validate_bitrate(op["buffer_size"])
+
     # Validate resolution
     if "width" in op or "height" in op:
         width = op.get("width")
@@ -681,7 +711,7 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
         validated_resolution = validate_resolution(width, height)
         if validated_resolution:
             validated.update(validated_resolution)
-    
+
     # Validate frame rate
     if "fps" in op:
         fps = op["fps"]
@@ -691,7 +721,7 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
             validated["fps"] = float(fps)
         else:
             raise ValueError("FPS must be a number")
-    
+
     # Validate CRF
     if "crf" in op:
         crf = op["crf"]
@@ -701,7 +731,46 @@ def validate_transcode_operation(op: Dict[str, Any]) -> Dict[str, Any]:
             validated["crf"] = int(crf)
         else:
             raise ValueError("CRF must be a number")
-    
+
+    # Validate GOP size (keyframe interval)
+    if "gop_size" in op or "keyint" in op:
+        gop = op.get("gop_size") or op.get("keyint")
+        if isinstance(gop, int):
+            if gop < 1 or gop > 600:
+                raise ValueError("GOP size out of valid range (1-600)")
+            validated["gop_size"] = gop
+        else:
+            raise ValueError("GOP size must be an integer")
+
+    # Validate B-frames
+    if "b_frames" in op or "bframes" in op:
+        bf = op.get("b_frames") or op.get("bframes")
+        if isinstance(bf, int):
+            if bf < 0 or bf > 16:
+                raise ValueError("B-frames out of valid range (0-16)")
+            validated["b_frames"] = bf
+        else:
+            raise ValueError("B-frames must be an integer")
+
+    # Validate two-pass encoding
+    if "two_pass" in op:
+        validated["two_pass"] = bool(op["two_pass"])
+
+    # Validate audio sample rate
+    if "audio_sample_rate" in op:
+        sr = op["audio_sample_rate"]
+        allowed_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000]
+        if sr not in allowed_rates:
+            raise ValueError(f"Invalid audio sample rate: {sr}")
+        validated["audio_sample_rate"] = sr
+
+    # Validate audio channels
+    if "audio_channels" in op:
+        channels = op["audio_channels"]
+        if channels not in [1, 2, 6, 8]:
+            raise ValueError("Audio channels must be 1, 2, 6, or 8")
+        validated["audio_channels"] = channels
+
     return validated
 
 
