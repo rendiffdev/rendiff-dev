@@ -93,10 +93,11 @@ setup_monitoring() {
     # Create metrics directory
     mkdir -p /app/metrics
 
-    # Setup log rotation if available
+    # Setup log rotation if available and writable
     if command -v logrotate &> /dev/null; then
         echo "Setting up log rotation..."
-        cat > /etc/logrotate.d/rendiff << 'LOGROTATE_EOF'
+        if [ -w /etc/logrotate.d ]; then
+            cat > /etc/logrotate.d/rendiff << 'LOGROTATE_EOF'
 /app/logs/*.log {
     daily
     missingok
@@ -107,6 +108,9 @@ setup_monitoring() {
     sharedscripts
 }
 LOGROTATE_EOF
+        else
+            echo "Skipping logrotate setup (permission denied)"
+        fi
     fi
 
     echo "Monitoring setup completed."

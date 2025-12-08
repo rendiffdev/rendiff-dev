@@ -15,15 +15,19 @@ import structlog
 
 from api.config import settings
 from api.dependencies import DatabaseSession
-from api.services.queue import QueueService
-from api.services.storage import StorageService
 
 logger = structlog.get_logger()
 
 router = APIRouter()
 
-queue_service = QueueService()
-storage_service = StorageService()
+# Lazy import to avoid circular dependency
+def get_queue_service():
+    from api.main import queue_service
+    return queue_service
+
+def get_storage_service():
+    from api.main import storage_service
+    return storage_service
 
 
 # Response models for OpenAPI documentation
@@ -146,7 +150,7 @@ async def detailed_health_check(
 
     # Check queue
     try:
-        queue_health = await queue_service.health_check()
+        queue_health = await get_queue_service().health_check()
         health_status["components"]["queue"] = queue_health
     except Exception as e:
         health_status["status"] = "unhealthy"
@@ -157,7 +161,7 @@ async def detailed_health_check(
 
     # Check storage backends
     try:
-        storage_health = await storage_service.health_check()
+        storage_health = await get_storage_service().health_check()
         health_status["components"]["storage"] = storage_health
     except Exception as e:
         health_status["status"] = "unhealthy"
@@ -283,7 +287,7 @@ async def get_capabilities() -> Dict[str, Any]:
             "metrics": ["vmaf", "psnr", "ssim"],
             "probing": ["format", "streams", "metadata"],
         },
-        "storage_backends": list(storage_service.backends.keys()),
+        "storage_backends": list(get_storage_service().backends.keys()),
         "hardware_acceleration": {
             "available": await check_hardware_acceleration(),
             "types": ["nvidia", "vaapi", "qsv", "videotoolbox"],

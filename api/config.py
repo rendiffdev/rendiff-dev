@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     TEMP_PATH: str = "/tmp/rendiff"
     
     # Worker
+    WORKER_TYPE: str = "cpu"  # cpu, gpu, or analysis
     WORKER_CONCURRENCY: int = 4
     WORKER_PREFETCH_MULTIPLIER: int = 1
     WORKER_MAX_TASKS_PER_CHILD: int = 100

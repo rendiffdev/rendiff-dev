@@ -16,16 +16,21 @@ import structlog
 from api.config import settings
 from api.dependencies import DatabaseSession, RequiredAPIKey
 from api.models.job import Job, JobStatus, ConvertRequest, JobCreateResponse, JobResponse, ErrorResponse
-from api.services.queue import QueueService
-from api.services.storage import StorageService
 from api.utils.validators import validate_input_path, validate_output_path, validate_operations
 
 logger = structlog.get_logger()
 
 router = APIRouter()
 
-queue_service = QueueService()
-storage_service = StorageService()
+# Import services from main - they are initialized during app startup
+# Lazy import to avoid circular dependency
+def get_storage_service():
+    from api.main import storage_service
+    return storage_service
+
+def get_queue_service():
+    from api.main import queue_service
+    return queue_service
 
 
 @router.post(
@@ -104,6 +109,7 @@ async def convert_media(
         output_path = request.output if isinstance(request.output, str) else request.output.get("path")
         
         # Validate paths
+        storage_service = get_storage_service()
         input_backend, input_validated = await validate_input_path(input_path, storage_service)
         output_backend, output_validated = await validate_output_path(output_path, storage_service)
         
@@ -153,9 +159,10 @@ async def convert_media(
         
         # Now we have a guaranteed unique job ID, queue it
         job_id_str = str(job.id)
-        
+
         # Queue the job (do this before commit in case queuing fails)
         try:
+            queue_service = get_queue_service()
             await queue_service.enqueue_job(
                 job_id=job_id_str,
                 priority=request.priority,

@@ -7,8 +7,8 @@
 # Documentation
 *.md
 docs/
-*.txt
 LICENSE
+# Note: requirements.txt is NOT ignored (needed for build)
 
 # Development files
 .vscode/
@@ -124,8 +124,11 @@ node_modules/
 # Optional npm cache directory
 .npm
 
-# Storage and data directories (only for build context)
-storage/
+# Storage data directories (NOT the storage module)
+# Note: storage/ module is needed, storage/input, storage/output etc. are not
+storage/input/
+storage/output/
+storage/temp/
 data/
 tmp/
 temp/
