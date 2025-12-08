@@ -12,9 +12,9 @@ services:
     command:
       - --configFile=/etc/traefik/traefik.yml
     ports:
-      - "80:80"
-      - "443:443"
-      - "8081:8080"
+      - "8880:80"
+      - "8443:443"
+      - "8881:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -67,7 +67,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       - rendiff-net
     restart: unless-stopped
@@ -116,7 +116,7 @@ services:
       - redis-data:/data
       - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       - rendiff-net
     restart: unless-stopped
@@ -134,8 +134,9 @@ services:
       dockerfile: docker/api/Dockerfile
     command: ["/app/scripts/docker-entrypoint.sh", "migrate"]
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://rendiff_user:dev_only_password_change_me@postgres:5432/rendiff}
-      - PYTHONUNBUFFERED=1
+      DATABASE_URL: postgresql://rendiff_user:dev_password_123@postgres:5432/rendiff_dev
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,12 +149,10 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
+      # platforms removed for local builds - enable for multi-arch CI builds
     # Note: container_name removed to allow replicas > 1
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
+      DATABASE_URL: postgresql://rendiff_user:dev_password_123@postgres:5432/rendiff_dev
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       LOG_LEVEL: info
@@ -164,7 +163,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_USER: rendiff_user
-      POSTGRES_DB: rendiff
+      POSTGRES_DB: rendiff_dev
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       # Security headers
@@ -214,12 +213,10 @@ services:
       dockerfile: docker/worker/Dockerfile
       args:
         WORKER_TYPE: cpu
-      platforms:
-        - linux/amd64
-        - linux/arm64
+      # platforms removed for local builds - enable for multi-arch CI builds
     # Note: container_name removed to allow replicas > 1
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
+      DATABASE_URL: postgresql://rendiff_user:dev_password_123@postgres:5432/rendiff_dev
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       WORKER_TYPE: cpu
@@ -264,7 +261,7 @@ services:
         - linux/amd64
     container_name: rendiff_worker_gpu
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://rendiff_user:defaultpassword@postgres:5432/rendiff}
+      DATABASE_URL: postgresql://rendiff_user:dev_password_123@postgres:5432/rendiff_dev
       REDIS_URL: redis://redis:6379/0
       STORAGE_CONFIG: /app/config/storage.yml
       WORKER_TYPE: gpu
@@ -360,8 +357,8 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.20.0.0/16
-          gateway: 172.20.0.1
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
 
 volumes:
   storage:

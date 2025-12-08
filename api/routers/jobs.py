@@ -18,13 +18,15 @@ import structlog
 from api.config import settings
 from api.dependencies import DatabaseSession, RequiredAPIKey
 from api.models.job import Job, JobStatus, JobResponse, JobListResponse, JobProgress, ErrorResponse
-from api.services.queue import QueueService
 
 logger = structlog.get_logger()
 
 router = APIRouter()
 
-queue_service = QueueService()
+# Lazy import to avoid circular dependency
+def get_queue_service():
+    from api.main import queue_service
+    return queue_service
 
 
 @router.get(
@@ -288,10 +290,10 @@ async def cancel_job(
 
     # Cancel in queue
     if job.status == JobStatus.QUEUED:
-        await queue_service.cancel_job(str(job_id))
+        await get_queue_service().cancel_job(str(job_id))
     elif job.status == JobStatus.PROCESSING:
         # Send cancel signal to worker
-        await queue_service.cancel_running_job(str(job_id), job.worker_id)
+        await get_queue_service().cancel_running_job(str(job_id), job.worker_id)
 
     # Update job status
     job.status = JobStatus.CANCELLED
@@ -471,7 +473,7 @@ async def get_job_logs(
 
     if job.status == JobStatus.PROCESSING and job.worker_id:
         # Get live logs from worker
-        logs = await queue_service.get_worker_logs(job.worker_id, str(job_id), lines)
+        logs = await get_queue_service().get_worker_logs(job.worker_id, str(job_id), lines)
     else:
         # Get stored logs from database and log aggregation system
         from api.services.job_service import JobService

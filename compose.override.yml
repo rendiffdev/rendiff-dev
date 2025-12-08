@@ -27,17 +27,17 @@ services:
       - "8000:8000"
       - "5678:5678"  # Python debugger port
       
-    # Override command for development with auto-reload
-    command: >
-      sh -c "
-        python -m pip install debugpy &&
-        python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    # Override command for development - simple uvicorn with auto-reload
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     
     # Reduce resource limits for development
     deploy:
+      replicas: 1
       resources:
         limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
           memory: 512M
           cpus: '0.5'
 
@@ -47,19 +47,22 @@ services:
       LOG_LEVEL: debug
       WORKER_CONCURRENCY: "2"
       PYTHONUNBUFFERED: "1"
-      
+
     volumes:
       # Development storage
       - ./storage:/storage
       - ./logs:/app/logs
-      
+
     # Reduce replicas for development
     deploy:
       replicas: 1
       resources:
         limits:
-          memory: 1G
-          cpus: '1.0'
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
 
   # PostgreSQL - Development Overrides
   postgres:
@@ -67,20 +70,20 @@ services:
       # Development database settings
       POSTGRES_PASSWORD: dev_password_123
       POSTGRES_DB: rendiff_dev
-      
+
     ports:
-      # Expose postgres for local development tools
-      - "5432:5432"
-      
+      # Expose postgres for local development tools (use alternate port to avoid conflicts)
+      - "5433:5432"
+
     volumes:
       # Use local development data
       - postgres-dev-data:/var/lib/postgresql/data
-      
-  # Redis - Development Overrides  
+
+  # Redis - Development Overrides
   redis:
     ports:
-      # Expose Redis for local development tools
-      - "6379:6379"
+      # Expose Redis for local development tools (use alternate port to avoid conflicts)
+      - "6380:6379"
       
     volumes:
       # Use local development data

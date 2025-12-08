@@ -57,7 +57,7 @@ def on_worker_ready(**kwargs):
     """Called when worker is ready to accept tasks."""
     logger.info(
         "Worker ready",
-        worker_type=settings.get("WORKER_TYPE", "cpu"),
+        worker_type=getattr(settings, "WORKER_TYPE", "cpu"),
         concurrency=settings.WORKER_CONCURRENCY,
         hostname=kwargs.get("sender").hostname,
     )
@@ -79,9 +79,9 @@ if __name__ == "__main__":
     # Setup signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
-    
+
     # Determine worker type and queues
-    worker_type = settings.get("WORKER_TYPE", "cpu")
+    worker_type = getattr(settings, "WORKER_TYPE", "cpu")
     
     if worker_type == "gpu":
         queues = ["gpu", "default"]

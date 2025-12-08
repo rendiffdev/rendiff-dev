@@ -15,15 +15,19 @@ import structlog
 from api.config import settings
 from api.dependencies import DatabaseSession, require_api_key
 from api.models.job import Job, JobStatus, ErrorResponse
-from api.services.queue import QueueService
-from api.services.storage import StorageService
 from pydantic import BaseModel
 
 logger = structlog.get_logger()
 router = APIRouter()
 
-queue_service = QueueService()
-storage_service = StorageService()
+# Lazy import to avoid circular dependency
+def get_queue_service():
+    from api.main import queue_service
+    return queue_service
+
+def get_storage_service():
+    from api.main import storage_service
+    return storage_service
 
 
 # Response models for OpenAPI documentation
@@ -124,7 +128,7 @@ async def get_workers_status(
     Only accessible with admin API key.
     """
     try:
-        workers = await queue_service.get_workers_status()
+        workers = await get_queue_service().get_workers_status()
 
         return WorkersStatusResponse(
             total_workers=len(workers),
@@ -169,7 +173,7 @@ async def get_storage_status(
     try:
         storage_status = {}
 
-        for name, backend in storage_service.backends.items():
+        for name, backend in get_storage_service().backends.items():
             try:
                 # Get backend-specific status
                 backend_status = await backend.get_status()
@@ -186,8 +190,8 @@ async def get_storage_status(
 
         return StorageStatusResponse(
             backends=storage_status,
-            default_backend=storage_service.config.get("default_backend"),
-            policies=storage_service.config.get("policies", {}),
+            default_backend=get_storage_service().config.get("default_backend"),
+            policies=get_storage_service().config.get("policies", {}),
         )
     except Exception as e:
         logger.error("Failed to get storage status", error=str(e))
@@ -267,8 +271,8 @@ async def get_system_stats(
             "avg_processing_time": sum(row.avg_time or 0 for row in job_stats) / len(job_stats) if job_stats else 0,
             "avg_vmaf_score": sum(row.avg_vmaf or 0 for row in job_stats if row.avg_vmaf) / sum(1 for row in job_stats if row.avg_vmaf) if any(row.avg_vmaf for row in job_stats) else None,
         },
-        queue=await queue_service.get_queue_stats(),
-        workers=await queue_service.get_workers_stats(),
+        queue=await get_queue_service().get_queue_stats(),
+        workers=await get_queue_service().get_workers_stats(),
     )
 
     return stats
@@ -337,8 +341,8 @@ async def cleanup_old_jobs(
         try:
             # Delete output file if it exists
             if job.output_path:
-                backend_name, file_path = storage_service.parse_uri(job.output_path)
-                backend = storage_service.backends.get(backend_name)
+                backend_name, file_path = get_storage_service().parse_uri(job.output_path)
+                backend = get_storage_service().backends.get(backend_name)
                 if backend:
                     await backend.delete(file_path)
 

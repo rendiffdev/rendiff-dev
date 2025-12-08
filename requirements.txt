@@ -4,7 +4,8 @@ uvicorn[standard]==0.32.1
 pydantic==2.10.3
 pydantic-settings==2.7.0
 python-multipart==0.0.19
-annotated-doc==0.1.0
+annotated-types==0.7.0
+typing_extensions>=4.9.0
 
 # Database - Production Ready
 sqlalchemy[asyncio]==2.0.36
@@ -25,6 +26,7 @@ aiofiles==24.1.0
 # Media Processing - Core
 ffmpeg-python==0.2.0
 pillow==11.0.0  # Latest version, regularly updated for security
+python-magic==0.4.27  # For file type detection
 
 # HTTP Client & Networking
 httpx==0.28.1

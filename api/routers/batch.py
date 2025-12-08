@@ -13,8 +13,6 @@ import structlog
 from api.config import settings
 from api.dependencies import DatabaseSession, RequiredAPIKey
 from api.models.job import Job, JobStatus, JobResponse, ErrorResponse
-from api.services.queue import QueueService
-from api.services.storage import StorageService
 from api.utils.validators import validate_input_path, validate_output_path, validate_operations
 from api.utils.media_validator import media_validator
 from pydantic import BaseModel, Field
@@ -22,8 +20,14 @@ from pydantic import BaseModel, Field
 logger = structlog.get_logger()
 router = APIRouter()
 
-queue_service = QueueService()
-storage_service = StorageService()
+# Lazy import to avoid circular dependency
+def get_queue_service():
+    from api.main import queue_service
+    return queue_service
+
+def get_storage_service():
+    from api.main import storage_service
+    return storage_service
 
 
 class BatchJob(BaseModel):
@@ -248,7 +252,7 @@ async def create_batch_job(
                 await db.refresh(job)
 
                 # Queue the job
-                await queue_service.enqueue_job(
+                await get_queue_service().enqueue_job(
                     job_id=str(job.id),
                     priority=job_request.priority,
                 )
@@ -487,9 +491,9 @@ async def cancel_batch(
                 try:
                     # Cancel job in queue
                     if job.status == JobStatus.QUEUED:
-                        success = await queue_service.cancel_job(str(job.id))
+                        success = await get_queue_service().cancel_job(str(job.id))
                     else:  # PROCESSING
-                        success = await queue_service.cancel_running_job(
+                        success = await get_queue_service().cancel_running_job(
                             str(job.id),
                             job.worker_id or ""
                         )
